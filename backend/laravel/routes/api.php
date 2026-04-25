@@ -1,11 +1,13 @@
 <?php
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ProductController;
 
-Route::middleware('api')->get('/test', function () {
+Route::get('/test', function () {
     return response()->json([
         'status' => 'success',
-        'message' => 'API working'
+        'message' => 'API working',
     ]);
 });
+
+Route::apiResource('products', ProductController::class);
