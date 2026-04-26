@@ -7,6 +7,11 @@ use Illuminate\Http\Request;
 
 class ProductController extends Controller
 {
+    private function ensureAdmin(Request $request): void
+    {
+        abort_unless(optional($request->user()->role)->name === 'Admin', 403, 'Admin access required.');
+    }
+
     public function index(Request $request)
     {
         $search = $request->query('search');
@@ -22,6 +27,8 @@ class ProductController extends Controller
 
     public function store(Request $request)
     {
+        $this->ensureAdmin($request);
+
         $validated = $request->validate([
             'barcode' => 'required|string|unique:products,barcode',
             'name' => 'required|string',
@@ -48,6 +55,8 @@ class ProductController extends Controller
 
     public function update(Request $request, string $id)
     {
+        $this->ensureAdmin($request);
+
         $product = Product::findOrFail($id);
 
         $validated = $request->validate([
@@ -69,6 +78,8 @@ class ProductController extends Controller
 
     public function destroy(string $id)
     {
+        abort(403, 'Products should be deactivated instead of deleted.');
+
         $product = Product::findOrFail($id);
         $product->delete();
 
