@@ -15,6 +15,8 @@ class User extends Authenticatable
         'email',
         'password',
         'role_id',
+        'is_active',
+        'last_login_at',
     ];
 
     protected $hidden = [
@@ -27,11 +29,23 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_active' => 'boolean',
+            'last_login_at' => 'datetime',
         ];
     }
 
     public function role()
     {
         return $this->belongsTo(Role::class);
+    }
+
+    public function sales()
+    {
+        return $this->hasMany(Sale::class, 'cashier_id');
+    }
+
+    public function auditLogs()
+    {
+        return $this->hasMany(AuditLog::class);
     }
 }
