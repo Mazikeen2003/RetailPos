@@ -4,6 +4,7 @@ import { login as apiLogin } from './services/auth';
 import { fetchProducts, createProduct, updateProduct, deactivateProduct } from './services/products';
 import { createSale as apiCreateSale, cancelSale as apiCancelSale, reprintReceipt as apiReprintReceipt } from './services/sales';
 import { fetchAuditLogs } from './services/audit';
+import Header from './components/Header';
 
 
 
@@ -693,6 +694,7 @@ export default function App() {
 
       {/* MAIN CONTENT */}
       <main className="flex-1 overflow-y-auto">
+        <Header currentUser={currentUser} onLogout={handleLogout} />
         {/* MOBILE HEADER */}
         <div className="md:hidden bg-white border-b border-gray-200 p-4 sticky top-0 z-50">
           <div className="flex items-center justify-between">
