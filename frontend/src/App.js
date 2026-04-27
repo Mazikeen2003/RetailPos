@@ -529,7 +529,7 @@ export default function App() {
         <div className="w-full max-w-lg relative z-10">
           {/* Mobile Header */}
           <div className="md:hidden text-center mb-8">
-            <div className="text-7xl mb-4 drop-shadow-lg animate-slideIn">🛒</div>
+            <img src="/logo.svg" alt="RetailPOS Pro" className="w-24 h-24 mx-auto mb-4 drop-shadow-lg animate-slideIn" />
             <h1 className="text-4xl font-bold text-white mb-2">RetailPOS Pro</h1>
             <p className="text-gray-300 text-sm mb-1">Point of Sale System</p>
           </div>
@@ -645,7 +645,7 @@ export default function App() {
       <aside className="hidden md:flex md:w-64 lg:w-72 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white shadow-2xl flex-col overflow-y-auto">
         <div className="p-4 md:p-6 border-b border-slate-700">
           <div className="flex items-center gap-3 md:gap-4">
-            <div className="text-3xl md:text-4xl animate-pulse">🛒</div>
+            <img src="/logo.svg" alt="RetailPOS Pro" className="w-10 h-10 md:w-12 md:h-12 animate-pulse" />
             <div>
               <h2 className="text-lg md:text-xl font-bold text-white">RetailPOS Pro</h2>
               <p className="text-xs md:text-sm text-slate-300">v2.0 Advanced</p>
@@ -699,7 +699,7 @@ export default function App() {
         <div className="md:hidden bg-white border-b border-gray-200 p-4 sticky top-0 z-50">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="text-2xl">🛒</div>
+              <img src="/logo.svg" alt="RetailPOS Pro" className="w-8 h-8" />
               <div>
                 <h1 className="font-bold text-lg text-gray-900">RetailPOS</h1>
                 <p className="text-xs text-gray-600">{currentUser.name}</p>

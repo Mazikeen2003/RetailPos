@@ -4,7 +4,7 @@ export default function Header({ currentUser, onLogout }) {
   return (
     <header className="hidden md:flex items-center justify-between bg-white border-b border-gray-200 p-4 lg:p-6 sticky top-0 z-50">
       <div className="flex items-center gap-3">
-        <div className="text-2xl">🛒</div>
+        <img src="/logo.svg" alt="RetailPOS Pro" className="w-10 h-10" />
         <div>
           <h1 className="text-lg font-bold text-gray-900">RetailPOS Pro</h1>
           <p className="text-xs text-gray-500">Advanced Point of Sale</p>
