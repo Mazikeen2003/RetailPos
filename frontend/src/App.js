@@ -106,6 +106,10 @@ export default function App() {
   // ==================== AUTHENTICATION ====================
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  // Safe derived values to avoid runtime errors when currentUser is null
+  const currentUserName = currentUser?.name ?? '';
+  const currentUserRole = currentUser?.role ?? '';
+  const currentUserInitials = currentUserName ? currentUserName.split(" ").map(n => n[0]).join("") : '';
   const [loginForm, setLoginForm] = useState({ name: "", password: "" });
   const [loginError, setLoginError] = useState("");
   const [activeTab, setActiveTab] = useState("sales");
@@ -252,12 +256,12 @@ export default function App() {
           ? { ...u, name: userForm.name, password: userForm.password, role: userForm.role, status: userForm.status }
           : u
       ));
-      addAuditLog("User Role Updated", currentUser.name, `${userForm.role} assigned to ${userForm.name}`, "High");
+      addAuditLog("User Role Updated", currentUserName || 'system', `${userForm.role} assigned to ${userForm.name}`, "High");
       setEditingUserId(null);
     } else {
       const newUser = { id: Date.now(), ...userForm, lastLogin: "Never" };
       setUsers([...users, newUser]);
-      addAuditLog("User Created", currentUser.name, `New ${userForm.role} account: ${userForm.name}`, "High");
+      addAuditLog("User Created", currentUserName || 'system', `New ${userForm.role} account: ${userForm.name}`, "High");
     }
     setUserForm({ name: "", password: "", role: "Cashier", status: "Active" });
   }, [users, userForm, editingUserId, currentUser, validateUserForm, addAuditLog]);
@@ -518,15 +522,8 @@ export default function App() {
     };
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-3">
-        {/* Decorative elements */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse"></div>
-          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" style={{animationDelay: "2s"}}></div>
-          <div className="absolute top-1/2 left-1/4 w-96 h-96 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10" style={{animationDelay: "4s"}}></div>
-        </div>
-
-        <div className="w-full max-w-lg relative z-10">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-3">
+          <div className="w-full max-w-lg relative z-10">
           {/* Mobile Header */}
           <div className="md:hidden text-center mb-8">
             <img src="/logo.svg" alt="RetailPOS Pro" className="w-24 h-24 mx-auto mb-4 drop-shadow-lg animate-slideIn" />
@@ -597,25 +594,25 @@ export default function App() {
 
             {/* Demo Users Section */}
             <div className="space-y-3">
-              <p className="text-center text-gray-600 text-xs font-semibold uppercase tracking-widest mb-4">Demo Users - Click to Auto-Fill</p>
-              
-              {demoUsers.map((user) => (
-                <button
-                  key={user.name}
-                  type="button"
-                  onClick={() => handleQuickLogin(user.name)}
-                  className={`w-full p-4 rounded-xl bg-gradient-to-r ${user.color} text-white font-semibold shadow-lg hover:shadow-2xl transform hover:scale-105 hover:-translate-y-1 active:scale-95 transition-all duration-200 border-2 border-white border-opacity-40 hover:border-opacity-100 flex items-center justify-between group`}
-                >
-                  <div className="flex items-center gap-4">
-                    <span className="text-3xl">{user.icon}</span>
+              <p className="text-center text-gray-600 text-xs font-semibold uppercase tracking-widest mb-4">Demo Users</p>
+
+              <div className="flex gap-2 justify-center">
+                {demoUsers.map((user) => (
+                  <button
+                    key={user.name}
+                    type="button"
+                    onClick={() => handleQuickLogin(user.name)}
+                    aria-label={`Login as ${user.name}`}
+                    className={`px-4 py-2 rounded-md bg-gray-100 text-gray-800 font-medium hover:bg-gray-200 flex items-center gap-3`}
+                  >
+                    <span className="text-lg">{user.icon}</span>
                     <div className="text-left">
-                      <div className="font-bold text-base leading-tight">{user.name}</div>
-                      <div className="text-xs opacity-95 font-medium">@{user.role}</div>
+                      <div className="font-semibold text-sm">{user.name}</div>
+                      <div className="text-xs text-gray-500">{user.role}</div>
                     </div>
-                  </div>
-                  <span className="text-2xl group-hover:translate-x-2 transition-transform duration-200">→</span>
-                </button>
-              ))}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Helpful Tip */}
@@ -674,12 +671,12 @@ export default function App() {
           <p className="text-xs md:text-sm text-slate-300 mb-3">Role-based secured session</p>
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 text-white flex items-center justify-center text-sm font-bold shadow-lg">
-              {currentUser.name.split(" ").map(n => n[0]).join("")}
+              {currentUserInitials || 'U'}
             </div>
             <div>
-              <p className="font-semibold text-sm text-white">{currentUser.name}</p>
+              <p className="font-semibold text-sm text-white">{currentUserName}</p>
               <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-emerald-500 text-white">
-                {currentUser.role}
+                {currentUserRole}
               </span>
             </div>
           </div>
@@ -702,7 +699,7 @@ export default function App() {
               <img src="/logo.svg" alt="RetailPOS Pro" className="w-8 h-8" />
               <div>
                 <h1 className="font-bold text-lg text-gray-900">RetailPOS</h1>
-                <p className="text-xs text-gray-600">{currentUser.name}</p>
+                <p className="text-xs text-gray-600">{currentUserName}</p>
               </div>
             </div>
             <button 
@@ -743,7 +740,7 @@ export default function App() {
                 <p className="text-xs md:text-sm font-semibold text-blue-600 uppercase tracking-wide mb-2">Point of Sale System</p>
                 <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-3">Sales Transaction Processing</h1>
                 <p className="text-gray-600 text-sm md:text-base">Scan, search, add items, and auto-compute totals with role-based access control.</p>
-                <p className="text-xs text-blue-700">{currentUser.role === "Supervisor" ? "Supervisor can cancel sale with reason, void items, and approve Post-void." : ""}</p>
+                <p className="text-xs text-blue-700">{currentUserRole === "Supervisor" ? "Supervisor can cancel sale with reason, void items, and approve Post-void." : ""}</p>
               </div>
             </div>
 
@@ -943,7 +940,7 @@ export default function App() {
           </>
         )}
 
-        {activeTab === "products" && (currentUser.role === "Administrator" || currentUser.role === "Supervisor") && (
+        {activeTab === "products" && (currentUserRole === "Administrator" || currentUserRole === "Supervisor") && (
           <>
             <div className="card-base p-4 md:p-6 mb-6">
               <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Product Management</h2>
@@ -1051,7 +1048,7 @@ export default function App() {
           </>
         )}
 
-        {activeTab === "users" && currentUser.role === "Administrator" && (
+        {activeTab === "users" && currentUserRole === "Administrator" && (
           <>
             <div className="card-base p-4 md:p-6 mb-6">
               <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">User Management</h2>
@@ -1250,7 +1247,7 @@ export default function App() {
           </div>
         )}
 
-        {activeTab === "postvoid" && (currentUser.role === "Supervisor" || currentUser.role === "Administrator") && (
+        {activeTab === "postvoid" && (currentUserRole === "Supervisor" || currentUserRole === "Administrator") && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
             <div className="card-base p-4 md:p-6">
               <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">Post-Void Completed Sale</h2>
@@ -1458,21 +1455,21 @@ export default function App() {
           </div>
         )}
 
-        {activeTab === "products" && !["Administrator", "Supervisor"].includes(currentUser.role) && (
+        {activeTab === "products" && !["Administrator", "Supervisor"].includes(currentUserRole) && (
           <div className="card-base p-4 md:p-6 bg-red-50 border-2 border-red-200">
             <h2 className="text-2xl md:text-3xl font-bold text-red-900 mb-2">Access Restricted</h2>
             <p className="text-red-800 text-sm md:text-base">⚠️ Only Administrators and Supervisors can manage products.</p>
           </div>
         )}
 
-        {activeTab === "users" && currentUser.role !== "Administrator" && (
+        {activeTab === "users" && currentUserRole !== "Administrator" && (
           <div className="card-base p-4 md:p-6 bg-red-50 border-2 border-red-200">
             <h2 className="text-2xl md:text-3xl font-bold text-red-900 mb-2">Access Restricted</h2>
             <p className="text-red-800 text-sm md:text-base">⚠️ Only Administrators can manage user accounts.</p>
           </div>
         )}
 
-        {activeTab === "postvoid" && !["Supervisor", "Administrator"].includes(currentUser.role) && (
+        {activeTab === "postvoid" && !["Supervisor", "Administrator"].includes(currentUserRole) && (
           <div className="card-base p-4 md:p-6 bg-red-50 border-2 border-red-200">
             <h2 className="text-2xl md:text-3xl font-bold text-red-900 mb-2">Access Restricted</h2>
             <p className="text-red-800 text-sm md:text-base">⚠️ Only Supervisors and Administrators can approve post-voids.</p>

@@ -10,12 +10,14 @@ class ReceiptController extends Controller
 {
     public function show($id)
     {
+        /** @var \App\Models\Sale $sale */
         $sale = Sale::with('items.product')->findOrFail($id);
         return response()->json($sale);
     }
 
     public function reprint(Request $request, $id)
     {
+        /** @var \App\Models\Sale $sale */
         $sale = Sale::findOrFail($id);
         $user = $request->user();
         $sale->reprinted = true;
@@ -23,8 +25,8 @@ class ReceiptController extends Controller
 
         AuditLog::create([
             'action' => 'Receipt Reprinted',
-            'user' => $user?->name ?? 'system',
-            'user_id' => $user?->id,
+            'user' => optional($user)->name ?? 'system',
+            'user_id' => optional($user)->id,
             'details' => "TXN-{$sale->id} reprinted",
             'level' => 'Medium',
         ]);
