@@ -1,6 +1,10 @@
 import React, { useEffect, useMemo, useState, useCallback, useReducer } from "react";
 // import { useEffect } from "react";
 import api from "./api/axios";
+import { login as apiLogin, logout as apiLogout } from './services/auth';
+import { fetchProducts, createProduct, updateProduct, deactivateProduct } from './services/products';
+import { createSale as apiCreateSale, cancelSale as apiCancelSale, getReceipt as apiGetReceipt, reprintReceipt as apiReprintReceipt } from './services/sales';
+import { fetchAuditLogs } from './services/audit';
 
 
 
@@ -94,10 +98,13 @@ const validators = {
 export default function App() {
 
       useEffect(() => {
-    api.get("/test")
-      .then(res => console.log(res.data))
-      .catch(err => console.log(err));
-  }, []);
+        // load products from API if available
+        fetchProducts().then((data) => {
+          if (Array.isArray(data) && data.length > 0) setProducts(data);
+        }).catch(() => {
+          // fallback to local initialProducts
+        });
+      }, []);
   // ==================== AUTHENTICATION ====================
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
@@ -113,6 +120,12 @@ export default function App() {
   // ==================== STATE INITIALIZATION ====================
   // Initialize audit logs and transactions FIRST (before functions that use them)
   const [auditLogs, setAuditLogs] = useState(initialAuditLogs);
+
+  useEffect(() => {
+    if (activeTab === 'audit') {
+      fetchAuditLogs().then(setAuditLogs).catch(() => {});
+    }
+  }, [activeTab]);
   const [transactions, setTransactions] = useState(initialTransactions);
 
   // Audit logging function
@@ -121,18 +134,22 @@ export default function App() {
     setAuditLogs(prev => [newLog, ...prev]);
   }, []);
 
-  const handleLogin = useCallback((e) => {
-    e.preventDefault();
+  const loginWithCredentials = useCallback(async (nameOrEmail, password) => {
     setLoginError("");
-    const user = initialUsers.find(u => u.name === loginForm.name && u.password === loginForm.password);
-    if (user) {
-      setCurrentUser(user);
+    try {
+      const res = await apiLogin(nameOrEmail, password);
+      setCurrentUser(res.user);
       setIsLoggedIn(true);
       setLoginForm({ name: "", password: "" });
-    } else {
+    } catch (err) {
       setLoginError("Invalid username or password");
     }
-  }, [loginForm]);
+  }, []);
+
+  const handleLogin = useCallback((e) => {
+    e.preventDefault();
+    loginWithCredentials(loginForm.name, loginForm.password);
+  }, [loginForm, loginWithCredentials]);
 
   const handleLogout = useCallback(() => {
     setIsLoggedIn(false);
@@ -160,32 +177,46 @@ export default function App() {
     return Object.keys(errors).length === 0;
   }, [productForm]);
 
-  const handleAddProduct = useCallback((e) => {
+  const handleAddProduct = useCallback(async (e) => {
     e.preventDefault();
     if (!validateProductForm()) return;
 
-    if (editingProductId) {
-      setProducts(products.map(p => 
-        p.id === editingProductId 
-          ? { ...p, name: productForm.name, barcode: productForm.barcode, category: productForm.category, price: parseFloat(productForm.price), stock: parseInt(productForm.stock) }
-          : p
-      ));
-      addAuditLog("Product Updated", currentUser.name, `Product ${productForm.name} updated`, "Medium");
-      setEditingProductId(null);
-      alert("✅ Product updated successfully");
-    } else {
-      const newProduct = { id: Date.now(), ...productForm, price: parseFloat(productForm.price), stock: parseInt(productForm.stock), active: true };
-      setProducts([...products, newProduct]);
-      addAuditLog("Product Added", currentUser.name, `New product: ${productForm.name}`, "Medium");
-      alert("✅ Product added successfully");
-    }
-    setProductForm({ name: "", barcode: "", category: "", price: "", stock: "" });
-  }, [products, productForm, editingProductId, currentUser, validateProductForm]);
+    try {
+      if (editingProductId) {
+        // update via API if available
+        await updateProduct(editingProductId, { name: productForm.name, barcode: productForm.barcode, category: productForm.category, price: parseFloat(productForm.price), stock: parseInt(productForm.stock), active: true });
+        addAuditLog("Product Updated", currentUser?.name || 'system', `Product ${productForm.name} updated`, "Medium");
+        setEditingProductId(null);
+        alert("✅ Product updated successfully");
+      } else {
+        // create via API
+        await createProduct({ name: productForm.name, barcode: productForm.barcode, category: productForm.category, price: parseFloat(productForm.price), stock: parseInt(productForm.stock) });
+        addAuditLog("Product Added", currentUser?.name || 'system', `New product: ${productForm.name}`, "Medium");
+        alert("✅ Product added successfully");
+      }
 
-  const handleDeactivateProduct = useCallback((id) => {
-    setProducts(products.map(p => p.id === id ? { ...p, active: false } : p));
-    addAuditLog("Product Deactivated", currentUser.name, `Product ${products.find(p => p.id === id)?.name} deactivated`, "Medium");
-  }, [products, currentUser]);
+      // refresh products
+      const serverProducts = await fetchProducts();
+      if (Array.isArray(serverProducts)) setProducts(serverProducts);
+    } catch (err) {
+      console.error(err);
+      alert('Product save failed: ' + (err?.response?.data?.message || err.message));
+    }
+
+    setProductForm({ name: "", barcode: "", category: "", price: "", stock: "" });
+  }, [productForm, editingProductId, currentUser, validateProductForm]);
+
+  const handleDeactivateProduct = useCallback(async (id) => {
+    try {
+      await deactivateProduct(id);
+      const serverProducts = await fetchProducts();
+      if (Array.isArray(serverProducts)) setProducts(serverProducts);
+      addAuditLog("Product Deactivated", currentUser?.name || 'system', `Product ${serverProducts.find(p => p.id === id)?.name} deactivated`, "Medium");
+    } catch (err) {
+      console.error(err);
+      alert('Deactivate failed: ' + (err?.response?.data?.message || err.message));
+    }
+  }, [currentUser]);
 
   const handleEditProduct = useCallback((product) => {
     setProductForm({ name: product.name, barcode: product.barcode, category: product.category, price: product.price.toString(), stock: product.stock.toString() });
@@ -287,7 +318,7 @@ export default function App() {
   const discountAmount = subtotal * discountRate;
   const total = subtotal - discountAmount;
 
-  const handleCancelSale = useCallback(() => {
+  const handleCancelSale = useCallback(async () => {
     if (cart.length === 0) {
       alert("⚠️ Cart is empty - nothing to cancel");
       return;
@@ -296,16 +327,22 @@ export default function App() {
       alert("❌ Please provide a reason for cancellation");
       return;
     }
-    
+
     const confirmed = window.confirm(
       `Are you sure you want to cancel this sale?\n\nTotal: ${peso(total)}\nReason: ${cancelReason}\n\nThis action cannot be undone.`
     );
-    
+
     if (confirmed) {
-      dispatchCart({ type: "CLEAR_CART" });
-      addAuditLog("Sale Cancelled", currentUser.name, `Reason: ${cancelReason}`, "Medium");
-      setCancelReason("");
-      alert("✅ Sale cancelled successfully. Cart has been cleared.");
+      try {
+        await apiCancelSale({ reason: cancelReason, items: cart });
+        dispatchCart({ type: "CLEAR_CART" });
+        addAuditLog("Sale Cancelled", currentUser?.name || 'Unknown', `Reason: ${cancelReason}`, "Medium");
+        setCancelReason("");
+        alert("✅ Sale cancelled successfully. Cart has been cleared.");
+      } catch (err) {
+        console.error(err);
+        alert("Cancel failed: " + (err?.response?.data?.message || err.message));
+      }
     }
   }, [cancelReason, currentUser, cart, total]);
 
@@ -317,38 +354,34 @@ export default function App() {
     }
   }, [voidItemId, handleRemoveFromCart, currentUser]);
 
-  const handleCompletePayment = useCallback(() => {
+  const handleCompletePayment = useCallback(async () => {
     if (cart.length === 0) {
       alert("Cart is empty");
       return;
     }
-    const txnId = getNextTransactionId();
-    const newTransaction = {
-      id: txnId,
-      items: cart,
-      subtotal,
-      discount,
-      discountAmount,
-      total,
-      timestamp: getCurrentTime(),
-      cashier: currentUser.name,
-      reprinted: false,
-    };
-    setTransactions([...transactions, newTransaction]);
-    
-    // Deduct stock from products
-    setProducts(prevProducts => prevProducts.map(product => {
-      const cartItem = cart.find(item => item.id === product.id);
-      return cartItem 
-        ? { ...product, stock: Math.max(0, product.stock - cartItem.qty) }
-        : product;
-    }));
-    
-    addAuditLog("Sale Completed", currentUser.name, `TXN-${txnId} completed for ${peso(total)}`, "High");
-    dispatchCart({ type: "CLEAR_CART" });
-    setDiscount("none");
-    alert(`✅ Payment successful! Transaction ID: TXN-${txnId}\n\nStock has been automatically deducted.`);
-  }, [cart, subtotal, discount, discountAmount, total, currentUser, transactions]);
+
+    try {
+      const payload = { items: cart.map(i => ({ id: i.id, qty: i.qty, price: i.price })), discount };
+      const saved = await apiCreateSale(payload);
+      setTransactions(prev => [...prev, saved]);
+
+      // reload products from API to get fresh stock
+      try {
+        const serverProducts = await fetchProducts();
+        if (Array.isArray(serverProducts)) setProducts(serverProducts);
+      } catch (err) {
+        // ignore
+      }
+
+      addAuditLog("Sale Completed", currentUser.name, `TXN-${saved.id} completed for ${peso(saved.total)}`, "High");
+      dispatchCart({ type: "CLEAR_CART" });
+      setDiscount("none");
+      alert(`✅ Payment successful! Transaction ID: TXN-${saved.id}\n\nStock has been automatically deducted.`);
+    } catch (err) {
+      console.error(err);
+      alert("Payment failed: " + (err?.response?.data?.message || err.message));
+    }
+  }, [cart, discount, currentUser]);
 
   // ==================== POST-VOID & APPROVAL ====================
   const [postVoidForm, setPostVoidForm] = useState({ txnId: "", reason: "", supervisor: "" });
@@ -435,17 +468,20 @@ export default function App() {
     printWindow.print();
   }, []);
 
-  const handleReprintReceipt = useCallback(() => {
-    const txn = transactions.find(t => t.id.toString() === reprintTxnId);
-    if (txn) {
-      setReprintedReceipt(txn);
-      setTransactions(transactions.map(t => t.id.toString() === reprintTxnId ? { ...t, reprinted: true } : t));
-      addAuditLog("Receipt Reprinted", currentUser.name, `TXN-${reprintTxnId} reprinted`, "Medium");
+  const handleReprintReceipt = useCallback(async () => {
+    try {
+      const sale = await apiGetReceipt(reprintTxnId);
+      // mark as reprinted on server and fetch updated sale
+      const updated = await apiReprintReceipt(reprintTxnId);
+      setReprintedReceipt(updated);
+      setTransactions(prev => prev.map(t => t.id.toString() === reprintTxnId ? { ...t, reprinted: true } : t));
+      addAuditLog("Receipt Reprinted", currentUser?.name || 'Unknown', `TXN-${reprintTxnId} reprinted`, "Medium");
       setReprintTxnId("");
-    } else {
+    } catch (err) {
+      console.error(err);
       alert("❌ Transaction not found");
     }
-  }, [reprintTxnId, transactions, currentUser]);
+  }, [reprintTxnId, currentUser]);
 
   // ==================== KPI CALCULATIONS ====================
   const totalSales = useMemo(() => transactions.reduce((sum, t) => sum + t.total, 0), [transactions]);
@@ -480,7 +516,8 @@ export default function App() {
     ];
 
     const handleQuickLogin = (userName) => {
-      setLoginForm({ name: userName, password: "1234" });
+      // one-click login for demo accounts
+      loginWithCredentials(userName, '1234');
     };
 
     return (
