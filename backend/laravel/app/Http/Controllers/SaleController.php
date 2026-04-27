@@ -7,26 +7,25 @@ use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use Illuminate\Http\Request;
+use App\Http\Requests\StoreSaleRequest;
+use App\Http\Requests\VoidSaleItemRequest;
+use App\Http\Requests\PostVoidRequest;
 use Illuminate\Support\Facades\DB;
 
 class SaleController extends Controller
 {
-    public function store(Request $request)
+    public function store(StoreSaleRequest $request)
     {
-        $request->validate([
-            'items' => 'required|array|min:1',
-            'discount' => 'nullable|string',
-        ]);
-
         $user = $request->user();
-        $items = $request->input('items');
+        $validated = $request->validated();
+        $items = $validated['items'];
 
         $subtotal = 0;
         foreach ($items as $it) {
             $subtotal += ($it['price'] ?? 0) * ($it['qty'] ?? 1);
         }
 
-        $discount = $request->input('discount', 'none');
+        $discount = $validated['discount'] ?? 'none';
         $discountRate = in_array($discount, ['senior','pwd']) ? 0.2 : (in_array($discount, ['athlete','solo']) ? 0.1 : 0);
         $discountAmount = $subtotal * $discountRate;
         $total = $subtotal - $discountAmount;
@@ -93,16 +92,11 @@ class SaleController extends Controller
         return response()->json(['message' => 'Sale cancellation recorded']);
     }
 
-    public function voidItem(Request $request)
+    public function voidItem(VoidSaleItemRequest $request)
     {
-        $request->validate([
-            'sale_id' => 'required|exists:sales,id',
-            'sale_item_id' => 'required|exists:sale_items,id',
-        ]);
-
         $user = $request->user();
 
-        $saleItem = SaleItem::findOrFail($request->sale_item_id);
+        $saleItem = SaleItem::findOrFail($request->validated()['sale_item_id']);
         if ($saleItem->voided) {
             return response()->json(['message' => 'Item already voided']);
         }
@@ -128,19 +122,13 @@ class SaleController extends Controller
         return response()->json(['message' => 'Item voided']);
     }
 
-    public function postVoid(Request $request)
+    public function postVoid(PostVoidRequest $request)
     {
-        $request->validate([
-            'sale_id' => 'required|exists:sales,id',
-            'reason' => 'required|string',
-        ]);
-
         $user = $request->user();
         if (! in_array($user?->role, ['Supervisor', 'Administrator'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
-
-        $sale = Sale::with('items')->findOrFail($request->sale_id);
+        $sale = Sale::with('items')->findOrFail($request->validated()['sale_id']);
         if ($sale->canceled) {
             return response()->json(['message' => 'Sale already canceled'], 400);
         }
@@ -154,14 +142,14 @@ class SaleController extends Controller
             }
 
             $sale->canceled = true;
-            $sale->canceled_reason = $request->reason;
+            $sale->canceled_reason = $request->validated()['reason'];
             $sale->save();
 
             AuditLog::create([
                 'action' => 'Post-void Approved',
                 'user' => $user?->name ?? 'system',
                 'user_id' => $user?->id,
-                'details' => "TXN-{$sale->id} reversed. Reason: {$request->reason}",
+                'details' => "TXN-{$sale->id} reversed. Reason: {$request->validated()['reason']}",
                 'level' => 'High',
             ]);
         });
