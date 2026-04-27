@@ -31,9 +31,7 @@ class SaleController extends Controller
         $discountAmount = $subtotal * $discountRate;
         $total = $subtotal - $discountAmount;
 
-        $sale = null;
-
-        DB::transaction(function () use ($user, $items, $subtotal, $discount, $discountAmount, $total, &$sale) {
+        $sale = DB::transaction(function () use ($user, $items, $subtotal, $discount, $discountAmount, $total) {
             $sale = Sale::create([
                 'user_id' => $user?->id,
                 'subtotal' => $subtotal,
@@ -66,6 +64,8 @@ class SaleController extends Controller
                 'details' => "TXN-{$sale->id} completed",
                 'level' => 'High',
             ]);
+
+            return $sale;
         });
 
         // return sale with items
