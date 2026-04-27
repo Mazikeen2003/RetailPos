@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo, useState, useCallback, useReducer } from "react";
 // import { useEffect } from "react";
-import api from "./api/axios";
-import { login as apiLogin, logout as apiLogout } from './services/auth';
+import { login as apiLogin } from './services/auth';
 import { fetchProducts, createProduct, updateProduct, deactivateProduct } from './services/products';
-import { createSale as apiCreateSale, cancelSale as apiCancelSale, getReceipt as apiGetReceipt, reprintReceipt as apiReprintReceipt } from './services/sales';
+import { createSale as apiCreateSale, cancelSale as apiCancelSale, reprintReceipt as apiReprintReceipt } from './services/sales';
 import { fetchAuditLogs } from './services/audit';
 
 
@@ -46,9 +45,7 @@ function getCurrentTime() {
   return new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
 }
 
-function getNextTransactionId() {
-  return Math.floor(Math.random() * 99999) + 20000;
-}
+// removed local txn id generator - server returns transaction ids
 
 // ==================== CART REDUCER ====================
 const cartReducer = (state, action) => {
@@ -204,7 +201,7 @@ export default function App() {
     }
 
     setProductForm({ name: "", barcode: "", category: "", price: "", stock: "" });
-  }, [productForm, editingProductId, currentUser, validateProductForm]);
+  }, [productForm, editingProductId, currentUser, validateProductForm, addAuditLog]);
 
   const handleDeactivateProduct = useCallback(async (id) => {
     try {
@@ -216,7 +213,7 @@ export default function App() {
       console.error(err);
       alert('Deactivate failed: ' + (err?.response?.data?.message || err.message));
     }
-  }, [currentUser]);
+  }, [currentUser, addAuditLog]);
 
   const handleEditProduct = useCallback((product) => {
     setProductForm({ name: product.name, barcode: product.barcode, category: product.category, price: product.price.toString(), stock: product.stock.toString() });
@@ -262,7 +259,7 @@ export default function App() {
       addAuditLog("User Created", currentUser.name, `New ${userForm.role} account: ${userForm.name}`, "High");
     }
     setUserForm({ name: "", password: "", role: "Cashier", status: "Active" });
-  }, [users, userForm, editingUserId, currentUser, validateUserForm]);
+  }, [users, userForm, editingUserId, currentUser, validateUserForm, addAuditLog]);
 
   const handleEditUser = useCallback((user) => {
     setUserForm({ name: user.name, password: user.password, role: user.role, status: user.status });
@@ -344,15 +341,15 @@ export default function App() {
         alert("Cancel failed: " + (err?.response?.data?.message || err.message));
       }
     }
-  }, [cancelReason, currentUser, cart, total]);
+  }, [cancelReason, currentUser, cart, total, addAuditLog]);
 
   const handleVoidItem = useCallback(() => {
     if (voidItemId) {
       handleRemoveFromCart(voidItemId);
-      addAuditLog("Item Voided", currentUser.name, `Item ${voidItemId} removed from transaction`, "Medium");
+      addAuditLog("Item Voided", currentUser?.name || 'Unknown', `Item ${voidItemId} removed from transaction`, "Medium");
       setVoidItemId(null);
     }
-  }, [voidItemId, handleRemoveFromCart, currentUser]);
+  }, [voidItemId, handleRemoveFromCart, currentUser, addAuditLog]);
 
   const handleCompletePayment = useCallback(async () => {
     if (cart.length === 0) {
@@ -373,7 +370,7 @@ export default function App() {
         // ignore
       }
 
-      addAuditLog("Sale Completed", currentUser.name, `TXN-${saved.id} completed for ${peso(saved.total)}`, "High");
+      addAuditLog("Sale Completed", currentUser?.name || 'Unknown', `TXN-${saved.id} completed for ${peso(saved.total)}`, "High");
       dispatchCart({ type: "CLEAR_CART" });
       setDiscount("none");
       alert(`✅ Payment successful! Transaction ID: TXN-${saved.id}\n\nStock has been automatically deducted.`);
@@ -381,7 +378,7 @@ export default function App() {
       console.error(err);
       alert("Payment failed: " + (err?.response?.data?.message || err.message));
     }
-  }, [cart, discount, currentUser]);
+  }, [cart, discount, currentUser, addAuditLog]);
 
   // ==================== POST-VOID & APPROVAL ====================
   const [postVoidForm, setPostVoidForm] = useState({ txnId: "", reason: "", supervisor: "" });
@@ -406,7 +403,7 @@ export default function App() {
       alert("Post-void approved and transaction reversed");
       setPostVoidForm({ txnId: "", reason: "", supervisor: "" });
     }
-  }, [postVoidForm, transactions]);
+  }, [postVoidForm, transactions, addAuditLog]);
 
   // ==================== RECEIPT MANAGEMENT ====================
   const [reprintTxnId, setReprintTxnId] = useState("");
@@ -446,7 +443,7 @@ export default function App() {
                 <span>${item.name} × ${item.qty}</span>
                 <span>₱${(item.qty * item.price).toFixed(2)}</span>
               </div>
-            `).join('') || '<div style=\"color: red;\">No items</div>'}
+            `).join('') || '<div style="color: red;">No items</div>'}
           </div>
           
           <div class="total-section">
@@ -470,7 +467,6 @@ export default function App() {
 
   const handleReprintReceipt = useCallback(async () => {
     try {
-      const sale = await apiGetReceipt(reprintTxnId);
       // mark as reprinted on server and fetch updated sale
       const updated = await apiReprintReceipt(reprintTxnId);
       setReprintedReceipt(updated);
@@ -481,7 +477,7 @@ export default function App() {
       console.error(err);
       alert("❌ Transaction not found");
     }
-  }, [reprintTxnId, currentUser]);
+  }, [reprintTxnId, currentUser, addAuditLog]);
 
   // ==================== KPI CALCULATIONS ====================
   const totalSales = useMemo(() => transactions.reduce((sum, t) => sum + t.total, 0), [transactions]);
