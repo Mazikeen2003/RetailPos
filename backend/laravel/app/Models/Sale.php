@@ -1,38 +1,8 @@
 <?php
-
 namespace App\Models;
-
 use Illuminate\Database\Eloquent\Model;
 
-class Sale extends Model
-{
-    protected $fillable = [
-        'cashier_id',
-        'subtotal',
-        'discount_type',
-        'discount_rate',
-        'discount_amount',
-        'total',
-        'status',
-    ];
-
-    protected function casts(): array
-    {
-        return [
-            'subtotal' => 'decimal:2',
-            'discount_rate' => 'decimal:2',
-            'discount_amount' => 'decimal:2',
-            'total' => 'decimal:2',
-        ];
-    }
-
-    public function cashier()
-    {
-        return $this->belongsTo(User::class, 'cashier_id');
-    }
-
-    public function items()
-    {
-        return $this->hasMany(SaleItem::class);
-    }
+class Sale extends Model {
+    protected $fillable = ['transaction_number', 'user_id', 'subtotal', 'discount_amount', 'discount_type', 'total_amount', 'cash_received', 'change_amount'];
+    public function items() { return $this->hasMany(SaleItem::class); }
 }
