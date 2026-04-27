@@ -32,7 +32,7 @@ class SaleController extends Controller
 
         $sale = DB::transaction(function () use ($user, $items, $subtotal, $discount, $discountAmount, $total) {
             $sale = Sale::create([
-                'user_id' => $user?->id,
+                'user_id' => optional($user)->id,
                 'subtotal' => $subtotal,
                 'discount' => $discount,
                 'discount_amount' => $discountAmount,
@@ -45,9 +45,9 @@ class SaleController extends Controller
 
                 SaleItem::create([
                     'sale_id' => $sale->id,
-                    'product_id' => $product?->id,
+                    'product_id' => optional($product)->id,
                     'qty' => $qty,
-                    'price' => $it['price'] ?? ($product?->price ?? 0),
+                            'price' => $it['price'] ?? (optional($product)->price ?? 0),
                 ]);
 
                 if ($product) {
@@ -58,8 +58,8 @@ class SaleController extends Controller
 
             AuditLog::create([
                 'action' => 'Sale Completed',
-                'user' => $user?->name ?? 'system',
-                'user_id' => $user?->id,
+                'user' => optional($user)->name ?? 'system',
+                'user_id' => optional($user)->id,
                 'details' => "TXN-{$sale->id} completed",
                 'level' => 'High',
             ]);
@@ -83,8 +83,8 @@ class SaleController extends Controller
 
         AuditLog::create([
             'action' => 'Sale Cancelled',
-            'user' => $user?->name ?? 'system',
-            'user_id' => $user?->id,
+            'user' => optional($user)->name ?? 'system',
+            'user_id' => optional($user)->id,
             'details' => $request->input('reason'),
             'level' => 'Medium',
         ]);
@@ -97,23 +97,23 @@ class SaleController extends Controller
         $user = $request->user();
 
         $saleItem = SaleItem::findOrFail($request->validated()['sale_item_id']);
-        if ($saleItem->voided) {
+        /** @var \App\Models\SaleItem $saleItem */
+        if ($saleItem->isVoided()) {
             return response()->json(['message' => 'Item already voided']);
         }
 
         DB::transaction(function () use ($saleItem, $user) {
-            $saleItem->voided = true;
-            $saleItem->save();
+            $saleItem->markVoided();
 
             if ($saleItem->product) {
-                $saleItem->product->stock += $saleItem->qty;
+                $saleItem->product->stock += $saleItem->getQty();
                 $saleItem->product->save();
             }
 
             AuditLog::create([
                 'action' => 'Item Voided',
-                'user' => $user?->name ?? 'system',
-                'user_id' => $user?->id,
+                'user' => optional($user)->name ?? 'system',
+                'user_id' => optional($user)->id,
                 'details' => "Voided item {$saleItem->id} from sale {$saleItem->sale_id}",
                 'level' => 'Medium',
             ]);
@@ -125,18 +125,23 @@ class SaleController extends Controller
     public function postVoid(PostVoidRequest $request)
     {
         $user = $request->user();
-        if (! in_array($user?->role, ['Supervisor', 'Administrator'])) {
+        if (! in_array(optional($user)->role, ['Supervisor', 'Administrator'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
+        /** @var \App\Models\Sale $sale */
         $sale = Sale::with('items')->findOrFail($request->validated()['sale_id']);
         if ($sale->canceled) {
             return response()->json(['message' => 'Sale already canceled'], 400);
         }
 
         DB::transaction(function () use ($sale, $request, $user) {
-            foreach ($sale->items as $it) {
-                if (! $it->voided && $it->product) {
-                    $it->product->stock += $it->qty;
+            /** @var \Illuminate\Database\Eloquent\Collection|\App\Models\SaleItem[] $saleItems */
+            $saleItems = $sale->items;
+
+            foreach ($saleItems as $it) {
+                /** @var \App\Models\SaleItem $it */
+                if (! $it->isVoided() && $it->product) {
+                    $it->product->stock += $it->getQty();
                     $it->product->save();
                 }
             }
@@ -147,8 +152,8 @@ class SaleController extends Controller
 
             AuditLog::create([
                 'action' => 'Post-void Approved',
-                'user' => $user?->name ?? 'system',
-                'user_id' => $user?->id,
+                'user' => optional($user)->name ?? 'system',
+                'user_id' => optional($user)->id,
                 'details' => "TXN-{$sale->id} reversed. Reason: {$request->validated()['reason']}",
                 'level' => 'High',
             ]);
