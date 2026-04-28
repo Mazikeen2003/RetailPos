@@ -50,7 +50,7 @@ export default function CashierReceiptsPanel({ sales, onReprint }) {
             <strong>{peso(lastSale.vat_amount)}</strong>
           </div>
           <button type="button" className="btn btn-primary" onClick={() => onReprint(lastSale)}>
-            Reprint Last Receipt
+            Print / Save PDF
           </button>
         </div>
       )}

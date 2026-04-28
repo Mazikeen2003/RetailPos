@@ -57,6 +57,159 @@ function peso(value) {
   }).format(Number(value || 0));
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function printReceipt(sale) {
+  const receiptWindow = window.open("", "receipt-print", "width=420,height=720");
+
+  if (!receiptWindow) {
+    return false;
+  }
+
+  const itemRows = sale.items
+    .map((item) => `
+      <tr>
+        <td>
+          <strong>${escapeHtml(item.product_name)}</strong>
+          <span>${escapeHtml(item.barcode)}</span>
+        </td>
+        <td class="qty">${item.quantity}</td>
+        <td class="amount">${peso(item.line_total)}</td>
+      </tr>
+    `)
+    .join("");
+
+  receiptWindow.document.write(`
+    <!doctype html>
+    <html>
+      <head>
+        <title>Receipt - Sale #${sale.id}</title>
+        <style>
+          @page { size: 80mm auto; margin: 8mm; }
+          * { box-sizing: border-box; }
+          body {
+            margin: 0;
+            color: #111827;
+            font-family: "Courier New", monospace;
+            font-size: 12px;
+            background: #fff;
+          }
+          .receipt {
+            width: 100%;
+            max-width: 320px;
+            margin: 0 auto;
+          }
+          .center { text-align: center; }
+          h1 {
+            margin: 0;
+            font-size: 18px;
+            letter-spacing: 0.08em;
+          }
+          .muted { color: #4b5563; }
+          .meta, .totals {
+            border-top: 1px dashed #111827;
+            border-bottom: 1px dashed #111827;
+            margin: 12px 0;
+            padding: 8px 0;
+          }
+          .line {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            margin: 3px 0;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+          td {
+            padding: 5px 0;
+            vertical-align: top;
+          }
+          td span {
+            display: block;
+            color: #6b7280;
+            font-size: 10px;
+          }
+          .qty {
+            width: 34px;
+            text-align: center;
+          }
+          .amount {
+            width: 86px;
+            text-align: right;
+          }
+          .total {
+            font-size: 15px;
+            font-weight: 800;
+          }
+          .reprint {
+            display: inline-block;
+            margin-top: 6px;
+            padding: 2px 8px;
+            border: 1px solid #111827;
+            font-weight: 800;
+          }
+          .footer {
+            margin-top: 14px;
+            text-align: center;
+          }
+          @media print {
+            button { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <main class="receipt">
+          <div class="center">
+            <h1>RETAILPOS</h1>
+            <div class="muted">Official Receipt</div>
+            <div class="reprint">REPRINT</div>
+          </div>
+
+          <section class="meta">
+            <div class="line"><span>Sale #</span><strong>${sale.id}</strong></div>
+            <div class="line"><span>Cashier</span><strong>${escapeHtml(sale.cashier?.name || "Unknown cashier")}</strong></div>
+            <div class="line"><span>Date</span><strong>${new Date(sale.created_at || Date.now()).toLocaleString("en-PH")}</strong></div>
+          </section>
+
+          <table>
+            <tbody>${itemRows}</tbody>
+          </table>
+
+          <section class="totals">
+            <div class="line"><span>Subtotal</span><strong>${peso(sale.subtotal)}</strong></div>
+            <div class="line"><span>Discount</span><strong>${peso(sale.discount_amount)}</strong></div>
+            <div class="line"><span>VATable Sales</span><strong>${peso(sale.vatable_sales)}</strong></div>
+            <div class="line"><span>VAT 12%</span><strong>${peso(sale.vat_amount)}</strong></div>
+            <div class="line total"><span>Total</span><strong>${peso(sale.total)}</strong></div>
+          </section>
+
+          <div class="footer">
+            <p>Thank you for your purchase.</p>
+          </div>
+        </main>
+        <script>
+          window.onload = function () {
+            window.focus();
+            window.print();
+          };
+        </script>
+      </body>
+    </html>
+  `);
+  receiptWindow.document.close();
+
+  return true;
+}
+
 function getApiErrorMessage(error, fallback) {
   const validationErrors = error?.response?.data?.errors;
 
@@ -458,8 +611,15 @@ export default function PosDashboardPage({ user, onLogout }) {
   };
 
   const handleReprintReceipt = async (sale) => {
+    const opened = printReceipt(sale);
+
+    if (!opened) {
+      setPageError("Print window was blocked. Please allow pop-ups for this site and try again.");
+      return;
+    }
+
     await recordAudit("reprint_receipt", `Reprinted receipt for sale #${sale.id}.`);
-    setSaleMessage(`Receipt for sale #${sale.id} marked as REPRINT.`);
+    setSaleMessage(`Receipt for sale #${sale.id} opened for print or PDF saving.`);
   };
 
   const handleAdminProductSubmit = async (event) => {
