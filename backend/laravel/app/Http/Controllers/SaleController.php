@@ -25,20 +25,37 @@ class SaleController extends Controller
     {
         $validated = $request->validate([
             'discountType' => ['nullable', 'string', Rule::in(['none', 'senior', 'pwd', 'athlete', 'solo'])],
+            'discount' => ['nullable', 'string', Rule::in(['none', 'senior', 'pwd', 'athlete', 'solo'])],
             'items' => ['required', 'array', 'min:1'],
-            'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
-            'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'items.*.product_id' => ['nullable', 'integer', 'exists:products,id'],
+            'items.*.id' => ['nullable', 'integer', 'exists:products,id'],
+            'items.*.quantity' => ['nullable', 'integer', 'min:1'],
+            'items.*.qty' => ['nullable', 'integer', 'min:1'],
         ]);
 
-        $discountType = $validated['discountType'] ?? 'none';
+        $items = collect($validated['items'])->map(function ($item) {
+            $productId = $item['product_id'] ?? $item['id'] ?? null;
+            $quantity = $item['quantity'] ?? $item['qty'] ?? null;
+
+            if (! $productId || ! $quantity) {
+                abort(422, 'Each sale item must include a product and quantity.');
+            }
+
+            return [
+                'product_id' => $productId,
+                'quantity' => $quantity,
+            ];
+        })->values()->all();
+
+        $discountType = $validated['discountType'] ?? $validated['discount'] ?? 'none';
         $discountRate = match ($discountType) {
             'senior', 'pwd' => 0.20,
             'athlete', 'solo' => 0.10,
             default => 0,
         };
 
-        $sale = DB::transaction(function () use ($validated, $discountType, $discountRate, $request) {
-            $productIds = collect($validated['items'])->pluck('product_id');
+        $sale = DB::transaction(function () use ($items, $discountType, $discountRate, $request) {
+            $productIds = collect($items)->pluck('product_id');
             $products = Product::query()
                 ->whereIn('id', $productIds)
                 ->lockForUpdate()
@@ -48,7 +65,7 @@ class SaleController extends Controller
             $lineItems = [];
             $subtotal = 0;
 
-            foreach ($validated['items'] as $item) {
+            foreach ($items as $item) {
                 $product = $products->get($item['product_id']);
 
                 if (! $product || ! $product->active) {
@@ -72,14 +89,20 @@ class SaleController extends Controller
                 ];
             }
 
-            $discountAmount = $subtotal * $discountRate;
+            $discountAmount = round($subtotal * $discountRate, 2);
+            $taxableTotal = round($subtotal - $discountAmount, 2);
+            $vatableSales = round($taxableTotal / 1.12, 2);
+            $vatAmount = round($taxableTotal - $vatableSales, 2);
+
             $sale = Sale::create([
                 'cashier_id' => $request->user()->id,
                 'subtotal' => $subtotal,
                 'discount_type' => $discountType,
                 'discount_rate' => $discountRate,
                 'discount_amount' => $discountAmount,
-                'total' => $subtotal - $discountAmount,
+                'vatable_sales' => $vatableSales,
+                'vat_amount' => $vatAmount,
+                'total' => $taxableTotal,
                 'status' => 'completed',
             ]);
 
@@ -94,6 +117,11 @@ class SaleController extends Controller
         return response()->json([
             'message' => 'Sale completed successfully',
             'sale' => $sale,
+            'subtotal' => (float) $sale->subtotal,
+            'discount_amount' => (float) $sale->discount_amount,
+            'vatable_sales' => (float) $sale->vatable_sales,
+            'vat_amount' => (float) $sale->vat_amount,
+            'total' => (float) $sale->total,
         ], 201);
     }
 }
