@@ -182,6 +182,8 @@ p {
 
 .dashboard-sidebar {
   padding: 28px;
+  min-height: 100vh;
+  max-height: 100vh;
   background:
     linear-gradient(180deg, rgba(13, 39, 35, 0.98), rgba(10, 28, 25, 0.98)),
     rgba(28, 25, 23, 0.92);
@@ -190,7 +192,24 @@ p {
   align-content: start;
   gap: 24px;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
-  position: relative;
+  position: sticky;
+  top: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(167, 243, 208, 0.28) transparent;
+}
+
+.dashboard-sidebar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dashboard-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dashboard-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(167, 243, 208, 0.24);
+  border-radius: 999px;
 }
 
 .dashboard-sidebar::after {
@@ -943,6 +962,10 @@ p {
   .dashboard-sidebar {
     border-right: none;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    min-height: auto;
+    max-height: none;
+    position: static;
+    overflow: visible;
   }
 
   .sale-panel {
