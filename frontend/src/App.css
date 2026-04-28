@@ -363,10 +363,42 @@ p {
   background: rgba(255, 255, 255, 0.78);
 }
 
+.product-management-row {
+  align-items: center;
+}
+
 .table-row-actions,
 .admin-form-grid {
   display: grid;
   gap: 10px;
+}
+
+.product-management-actions {
+  grid-template-columns: 96px 96px 116px 96px 124px;
+  align-items: center;
+  justify-items: end;
+  gap: 12px;
+}
+
+.product-management-actions .status-pill {
+  justify-self: end;
+}
+
+.product-stock-count,
+.product-price {
+  color: var(--ink);
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.product-management-actions .btn {
+  min-width: 96px;
+  width: 100%;
+}
+
+.product-management-actions .btn:last-child {
+  min-width: 124px;
 }
 
 .activity-row {
@@ -984,6 +1016,22 @@ p {
   .sale-panel {
     position: static;
   }
+
+  .product-management-actions {
+    grid-template-columns: repeat(3, minmax(96px, 1fr));
+    justify-items: stretch;
+    width: 100%;
+  }
+
+  .product-management-actions .status-pill {
+    justify-self: stretch;
+    width: 100%;
+  }
+
+  .product-stock-count,
+  .product-price {
+    text-align: center;
+  }
 }
 
 @media (max-width: 720px) {
@@ -1038,5 +1086,25 @@ p {
   .receipt-headline {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .product-management-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .product-management-actions .status-pill {
+    grid-column: 1 / -1;
+  }
+
+  .product-stock-count,
+  .product-price {
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: rgba(15, 118, 110, 0.08);
+  }
+
+  .product-management-actions .btn,
+  .product-management-actions .btn:last-child {
+    min-width: 0;
   }
 }

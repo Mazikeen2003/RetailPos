@@ -42,7 +42,7 @@ export default function AdminProductsPanel({
         <div>
           <p className="eyebrow">Administrator</p>
           <h2>Manage Products</h2>
-          <p className="panel-empty">Use `Edit` to change stock or price. Use the status button to deactivate or reactivate a product.</p>
+          <p className="panel-empty">Use Edit to change stock or price. Use the status button to deactivate or reactivate a product.</p>
         </div>
       </div>
 
@@ -117,17 +117,17 @@ export default function AdminProductsPanel({
 
       <div className="table-like">
         {products.map((product) => (
-          <div key={product.id} className="table-row">
+          <div key={product.id} className="table-row product-management-row">
             <div>
               <strong>{product.name}</strong>
               <p>{product.barcode} • {product.category}</p>
             </div>
-            <div className="table-row-actions">
+            <div className="table-row-actions product-management-actions">
               <span className={`status-pill ${product.active ? "ok" : "off"}`}>
                 {product.active ? "Active" : "Inactive"}
               </span>
-              <span>{product.stock} stock</span>
-              <span>PHP {Number(product.price).toFixed(2)}</span>
+              <span className="product-stock-count">{product.stock} stock</span>
+              <span className="product-price">PHP {Number(product.price).toFixed(2)}</span>
               <button type="button" className="btn btn-secondary slim" onClick={() => onEdit(normalizeForm(product), product.id)}>
                 Edit
               </button>
