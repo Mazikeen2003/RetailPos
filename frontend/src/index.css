@@ -1040,3 +1040,32 @@ button:focus-visible {
 
 /* end additional dark overrides */
 
+/* Target common slate/text utilities used across the app */
+.dark .text-slate-900, .dark .text-slate-800, .dark .text-slate-700 {
+  color: #e6eef8 !important;
+}
+.dark .text-slate-600, .dark .text-slate-500, .dark .text-slate-400, .dark .text-slate-300 {
+  color: #cbd5e1 !important;
+}
+.dark .text-slate-200, .dark .text-slate-100 {
+  color: #94a3b8 !important;
+}
+
+/* Ensure headings and smaller text inside cards are visible */
+.dark .card-base h1, .dark .card-base h2, .dark .card-base h3, .dark .card-base p, .dark .card-base small, .dark .card-base a, .dark .card-base span {
+  color: inherit !important;
+}
+
+/* Make sure utility gray text colors are readable even when component uses neutral classes */
+.dark .text-gray-900, .dark .text-gray-800, .dark .text-gray-700, .dark .text-gray-600, .dark .text-gray-500 {
+  color: #e6eef8 !important;
+}
+
+/* Buttons inside dark cards - ensure text contrast */
+.dark .card-base .btn-primary, .dark .btn-primary { color: #fff !important; }
+.dark .card-base .btn-secondary, .dark .btn-secondary { color: #fff !important; }
+
+/* Fallback: make any element with .muted or .muted-text visible */
+.dark .muted, .dark .muted-text { color: #98a6bd !important; }
+
+
