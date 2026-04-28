@@ -11,6 +11,7 @@ use App\Http\Requests\StoreSaleRequest;
 use App\Http\Requests\VoidSaleItemRequest;
 use App\Http\Requests\PostVoidRequest;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class SaleController extends Controller
 {
@@ -19,18 +20,38 @@ class SaleController extends Controller
         $user = $request->user();
         $validated = $request->validated();
         $items = $validated['items'];
-
-        $subtotal = 0;
-        foreach ($items as $it) {
-            $subtotal += ($it['price'] ?? 0) * ($it['qty'] ?? 1);
-        }
-
         $discount = $validated['discount'] ?? 'none';
-        $discountRate = in_array($discount, ['senior','pwd']) ? 0.2 : (in_array($discount, ['athlete','solo']) ? 0.1 : 0);
-        $discountAmount = $subtotal * $discountRate;
-        $total = $subtotal - $discountAmount;
 
-        $sale = DB::transaction(function () use ($user, $items, $subtotal, $discount, $discountAmount, $total) {
+        $sale = DB::transaction(function () use ($user, $items, $discount) {
+            $saleItems = [];
+            $subtotal = 0;
+
+            foreach ($items as $it) {
+                $productId = $it['id'] ?? $it['product_id'] ?? null;
+                $qty = intval($it['qty'] ?? 1);
+                $product = Product::whereKey($productId)->lockForUpdate()->firstOrFail();
+
+                if (! $product->active) {
+                    throw ValidationException::withMessages([
+                        'items' => ["{$product->name} is inactive and cannot be sold."],
+                    ]);
+                }
+
+                if ($product->stock < $qty) {
+                    throw ValidationException::withMessages([
+                        'items' => ["Only {$product->stock} unit(s) available for {$product->name}."],
+                    ]);
+                }
+
+                $price = (float) $product->price;
+                $subtotal += $price * $qty;
+                $saleItems[] = compact('product', 'qty', 'price');
+            }
+
+            $discountRate = in_array($discount, ['senior','pwd']) ? 0.2 : (in_array($discount, ['athlete','solo']) ? 0.1 : 0);
+            $discountAmount = $subtotal * $discountRate;
+            $total = $subtotal - $discountAmount;
+
             $sale = Sale::create([
                 'user_id' => optional($user)->id,
                 'subtotal' => $subtotal,
@@ -39,21 +60,16 @@ class SaleController extends Controller
                 'total' => $total,
             ]);
 
-            foreach ($items as $it) {
-                $product = Product::find($it['id'] ?? $it['product_id']);
-                $qty = intval($it['qty'] ?? 1);
-
+            foreach ($saleItems as $saleItem) {
                 SaleItem::create([
                     'sale_id' => $sale->id,
-                    'product_id' => optional($product)->id,
-                    'qty' => $qty,
-                            'price' => $it['price'] ?? (optional($product)->price ?? 0),
+                    'product_id' => $saleItem['product']->id,
+                    'qty' => $saleItem['qty'],
+                    'price' => $saleItem['price'],
                 ]);
 
-                if ($product) {
-                    $product->stock = max(0, $product->stock - $qty);
-                    $product->save();
-                }
+                $saleItem['product']->stock -= $saleItem['qty'];
+                $saleItem['product']->save();
             }
 
             AuditLog::create([

@@ -25,4 +25,20 @@ export function setAuthToken(token) {
   }
 }
 
+// Global response interceptor: handle 401 unauthenticated responses
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    try {
+      if (error?.response?.status === 401) {
+        // clear stored token and notify user
+        try { localStorage.removeItem('rp_token'); delete api.defaults.headers.common['Authorization']; } catch (e) {}
+        // show friendly message
+        try { window.alert('Session expired or unauthenticated. Please log in again.'); } catch (e) {}
+      }
+    } catch (e) {}
+    return Promise.reject(error);
+  }
+);
+
 export default api;

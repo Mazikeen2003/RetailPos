@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class ProductController extends Controller
 {
@@ -11,16 +12,25 @@ class ProductController extends Controller
     {
         $q = $request->query('q', $request->query('search', null));
         $products = Product::when($q, function ($query, $q) {
-            $query->where('name', 'like', "%{$q}%")->orWhere('barcode', 'like', "%{$q}%");
-        })->get();
+            $query->where('name', 'like', "%{$q}%")
+                ->orWhere('barcode', 'like', "%{$q}%")
+                ->orWhere('category', 'like', "%{$q}%");
+        })->orderByDesc('active')->orderBy('name')->get();
 
         return response()->json($products);
+    }
+
+    public function barcode(string $barcode)
+    {
+        $product = Product::where('barcode', trim($barcode))->firstOrFail();
+
+        return response()->json($product);
     }
 
     public function store(Request $request)
     {
         $data = $request->validate([
-            'barcode' => 'required|string',
+            'barcode' => ['required', 'string', 'max:255', 'unique:products,barcode'],
             'name' => 'required|string',
             'category' => 'nullable|string',
             'price' => 'required|numeric|min:0',
@@ -36,7 +46,7 @@ class ProductController extends Controller
     {
         $product = Product::findOrFail($id);
         $data = $request->validate([
-            'barcode' => 'required|string',
+            'barcode' => ['required', 'string', 'max:255', Rule::unique('products', 'barcode')->ignore($product->id)],
             'name' => 'required|string',
             'category' => 'nullable|string',
             'price' => 'required|numeric|min:0',

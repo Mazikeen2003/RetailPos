@@ -6,6 +6,11 @@ export async function fetchProducts(q = null) {
   return res.data;
 }
 
+export async function fetchProductByBarcode(barcode) {
+  const res = await api.get(`/products/barcode/${encodeURIComponent(barcode)}`);
+  return res.data;
+}
+
 export async function createProduct(data) {
   const res = await api.post('/products', data);
   return res.data;

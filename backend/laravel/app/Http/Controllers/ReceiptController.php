@@ -31,6 +31,6 @@ class ReceiptController extends Controller
             'level' => 'Medium',
         ]);
 
-        return response()->json($sale);
+        return response()->json($sale->load('items.product'));
     }
 }

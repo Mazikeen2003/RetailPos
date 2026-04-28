@@ -248,9 +248,9 @@ code {
 .border-teal-600 { border-color: rgb(13, 148, 136); }
 .border-emerald-200 { border-color: rgb(167, 243, 208); }
 .border-emerald-600 { border-color: rgb(5, 150, 105); }
-.border-orange-200 { border-color: rgb(fed7aa); }
+.border-orange-200 { border-color: #fed7aa; }
 .border-orange-600 { border-color: rgb(234, 88, 12); }
-.border-pink-200 { border-color: rgb(fbcfe8); }
+.border-pink-200 { border-color: #fbcfe8; }
 .border-pink-600 { border-color: rgb(219, 39, 119); }
 
 .bg-gradient-to-br { background-image: linear-gradient(to bottom right, var(--tw-gradient-stops)); }
@@ -632,13 +632,13 @@ textarea.input-base {
 }
 
 .badge-orange {
-  background-color: rgb(fed7aa);
+  background-color: #fed7aa;
   color: rgb(124, 45, 0);
   box-shadow: 0 0 10px rgba(234, 88, 12, 0.2);
 }
 
 .badge-pink {
-  background-color: rgb(fbcfe8);
+  background-color: #fbcfe8;
   color: rgb(131, 24, 67);
   box-shadow: 0 0 10px rgba(219, 39, 119, 0.2);
 }
@@ -1067,5 +1067,181 @@ button:focus-visible {
 
 /* Fallback: make any element with .muted or .muted-text visible */
 .dark .muted, .dark .muted-text { color: #98a6bd !important; }
+
+/* ==================== POS UI REFINEMENT PASS ==================== */
+.login-screen {
+  background:
+    linear-gradient(135deg, rgba(240, 253, 250, 0.82), rgba(239, 246, 255, 0.92)),
+    #f4f7fb;
+}
+
+.pos-shell {
+  width: 100%;
+  background:
+    linear-gradient(180deg, rgba(248, 250, 252, 0.94), rgba(241, 245, 249, 0.98)),
+    #f1f5f9;
+  color: #111827;
+}
+
+.content-stage {
+  width: 100%;
+}
+
+.sidebar-panel {
+  min-height: 100vh;
+  border-right: 1px solid rgba(15, 23, 42, 0.18);
+}
+
+.card-base {
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(148, 163, 184, 0.32);
+  box-shadow: 0 10px 22px -18px rgba(15, 23, 42, 0.45), 0 1px 0 rgba(255, 255, 255, 0.75) inset;
+}
+
+.card-base:hover {
+  transform: none;
+  border-color: rgba(20, 184, 166, 0.42);
+  box-shadow: 0 14px 28px -22px rgba(15, 23, 42, 0.55), 0 1px 0 rgba(255, 255, 255, 0.75) inset;
+}
+
+.btn-primary,
+.btn-secondary,
+.btn-danger,
+.input-base,
+.rounded-lg,
+.rounded-xl {
+  border-radius: 0.5rem;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #0f766e, #2563eb);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #0d9488, #1d4ed8);
+}
+
+.btn-secondary {
+  background: linear-gradient(135deg, #475569, #334155);
+}
+
+.btn-danger {
+  background: #dc2626;
+}
+
+table {
+  background: white;
+}
+
+thead {
+  background: #eef2f7;
+}
+
+tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.dark .login-screen,
+.dark .pos-shell {
+  background: #071026;
+  color: #e6eef8;
+}
+
+.dark .card-base,
+.dark .card-blue,
+.dark .card-purple,
+.dark .card-cyan,
+.dark .card-teal,
+.dark .card-emerald,
+.dark .card-orange,
+.dark .card-pink,
+.dark .card-indigo {
+  color: #e6eef8 !important;
+}
+
+.dark .card-base h1,
+.dark .card-base h2,
+.dark .card-base h3,
+.dark .card-base h4,
+.dark .card-base label,
+.dark .card-base strong,
+.dark .card-base .font-bold,
+.dark .card-base .font-semibold {
+  color: #f8fafc !important;
+}
+
+.dark .card-base p,
+.dark .card-base small,
+.dark .card-base td,
+.dark .card-base li,
+.dark .card-base .text-gray-600,
+.dark .card-base .text-gray-500,
+.dark .card-base .text-slate-600,
+.dark .card-base .text-slate-500 {
+  color: #cbd5e1 !important;
+}
+
+.dark .card-base .text-blue-600,
+.dark .card-base .text-blue-700,
+.dark .card-base .text-indigo-600,
+.dark .card-base .text-teal-700 {
+  color: #93c5fd !important;
+}
+
+.dark .card-base .text-green-600,
+.dark .card-base .text-green-700 {
+  color: #86efac !important;
+}
+
+.dark .card-base .text-red-600,
+.dark .card-base .text-red-700,
+.dark .card-base .text-red-800,
+.dark .card-base .text-red-900 {
+  color: #fca5a5 !important;
+}
+
+.dark .card-base .bg-white,
+.dark .card-base .bg-gray-50,
+.dark .card-base .bg-gray-100,
+.dark .card-base table,
+.dark .card-base thead,
+.dark .card-base tbody tr {
+  background-color: rgba(15, 23, 42, 0.7) !important;
+}
+
+.dark .card-base .bg-blue-50,
+.dark .card-base .bg-green-50,
+.dark .card-base .bg-green-100,
+.dark .card-base .bg-red-50,
+.dark .card-base .bg-yellow-50,
+.dark .card-base .bg-indigo-100,
+.dark .card-base .bg-teal-100 {
+  background-color: rgba(30, 41, 59, 0.82) !important;
+}
+
+.dark .card-base .badge {
+  border: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.dark .card-base .badge-success {
+  background: rgba(22, 163, 74, 0.18) !important;
+  color: #bbf7d0 !important;
+}
+
+.dark .card-base .badge-danger {
+  background: rgba(220, 38, 38, 0.2) !important;
+  color: #fecaca !important;
+}
+
+.dark .card-base .badge-warning {
+  background: rgba(217, 119, 6, 0.2) !important;
+  color: #fde68a !important;
+}
+
+.dark .card-base .badge-info {
+  background: rgba(8, 145, 178, 0.2) !important;
+  color: #a5f3fc !important;
+}
 
 

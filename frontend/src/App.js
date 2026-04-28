@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback, useReducer, useRef } from "react";
 // import { useEffect } from "react";
 import { login as apiLogin } from './services/auth';
-import { fetchProducts, createProduct, updateProduct, deactivateProduct } from './services/products';
+import { fetchProducts, fetchProductByBarcode, createProduct, updateProduct, deactivateProduct } from './services/products';
 import { createSale as apiCreateSale, cancelSale as apiCancelSale, reprintReceipt as apiReprintReceipt } from './services/sales';
 import { fetchAuditLogs } from './services/audit';
 import Header from './components/Header';
@@ -47,6 +47,47 @@ function getCurrentTime() {
   return new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
 }
 
+function getStoredToken() {
+  try {
+    return localStorage.getItem('rp_token');
+  } catch (e) {
+    return null;
+  }
+}
+
+function normalizeSale(sale, user) {
+  const items = Array.isArray(sale?.items)
+    ? sale.items.map((item) => ({
+        id: item.product_id ?? item.id,
+        name: item.name ?? item.product?.name ?? `Product #${item.product_id ?? item.id}`,
+        qty: item.qty ?? 1,
+        price: Number(item.price ?? item.product?.price ?? 0),
+      }))
+    : [];
+
+  return {
+    ...sale,
+    id: sale?.id ?? Date.now(),
+    items,
+    total: Number(sale?.total ?? items.reduce((sum, item) => sum + item.qty * item.price, 0)),
+    discount: sale?.discount ?? "none",
+    discountAmount: Number(sale?.discount_amount ?? sale?.discountAmount ?? 0),
+    timestamp: sale?.timestamp ?? (sale?.created_at ? new Date(sale.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : getCurrentTime()),
+    cashier: sale?.cashier ?? user?.name ?? "Demo",
+    reprinted: Boolean(sale?.reprinted),
+  };
+}
+
+function normalizeAuditLog(log) {
+  return {
+    action: log?.action ?? "System Event",
+    user: log?.user ?? "system",
+    details: log?.details ?? "",
+    level: log?.level ?? "Medium",
+    time: log?.time ?? (log?.created_at ? new Date(log.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : getCurrentTime()),
+  };
+}
+
 // removed local txn id generator - server returns transaction ids
 
 // ==================== CART REDUCER ====================
@@ -57,7 +98,7 @@ const cartReducer = (state, action) => {
       if (existingItem) {
         return state.map(item => 
           item.id === action.payload.id 
-            ? { ...item, qty: item.qty + 1 }
+            ? { ...item, qty: Math.min(item.stock ?? Number.MAX_SAFE_INTEGER, item.qty + 1) }
             : item
         );
       }
@@ -69,7 +110,7 @@ const cartReducer = (state, action) => {
     case "UPDATE_QUANTITY":
       return state.map(item =>
         item.id === action.payload.id
-          ? { ...item, qty: Math.max(1, action.payload.qty) }
+          ? { ...item, qty: Math.max(1, Math.min(item.stock ?? Number.MAX_SAFE_INTEGER, action.payload.qty || 1)) }
           : item
       );
     
@@ -147,8 +188,12 @@ export default function App() {
   const [auditLogs, setAuditLogs] = useState(initialAuditLogs);
 
   useEffect(() => {
-    if (activeTab === 'audit') {
-      fetchAuditLogs().then(setAuditLogs).catch(() => {});
+    if (activeTab === 'audit' && getStoredToken()) {
+      fetchAuditLogs().then((logs) => {
+        if (Array.isArray(logs)) {
+          setAuditLogs(logs.map(normalizeAuditLog));
+        }
+      }).catch(() => {});
     }
   }, [activeTab]);
   const [transactions, setTransactions] = useState(initialTransactions);
@@ -161,7 +206,19 @@ export default function App() {
 
   const loginWithCredentials = useCallback(async (nameOrEmail, password) => {
     setLoginError("");
+
+    // Quick local demo auth: if user matches a demo user and uses demo password, skip API
     try {
+      if (password === '1234') {
+        const localUser = initialUsers.find(u => u.name === nameOrEmail || u.name.toLowerCase() === (nameOrEmail || '').toLowerCase());
+        if (localUser) {
+          setCurrentUser(localUser);
+          setIsLoggedIn(true);
+          setLoginForm({ name: "", password: "" });
+          return;
+        }
+      }
+
       const res = await apiLogin(nameOrEmail, password);
       setCurrentUser(res.user);
       setIsLoggedIn(true);
@@ -207,7 +264,30 @@ export default function App() {
     if (!validateProductForm()) return;
 
     try {
-      if (editingProductId) {
+      if (!getStoredToken()) {
+        if (editingProductId) {
+          setProducts(prev => prev.map(p => p.id === editingProductId
+            ? { ...p, name: productForm.name, barcode: productForm.barcode, category: productForm.category, price: parseFloat(productForm.price), stock: parseInt(productForm.stock), active: true }
+            : p
+          ));
+          addAuditLog("Product Updated (demo)", currentUser?.name || 'system', `Product ${productForm.name} updated`, "Medium");
+          setEditingProductId(null);
+          alert("Product updated locally");
+        } else {
+          const newProduct = {
+            id: Date.now(),
+            name: productForm.name,
+            barcode: productForm.barcode,
+            category: productForm.category,
+            price: parseFloat(productForm.price),
+            stock: parseInt(productForm.stock),
+            active: true,
+          };
+          setProducts(prev => [newProduct, ...prev]);
+          addAuditLog("Product Added (demo)", currentUser?.name || 'system', `New product: ${productForm.name}`, "Medium");
+          alert("Product added locally");
+        }
+      } else if (editingProductId) {
         // update via API if available
         await updateProduct(editingProductId, { name: productForm.name, barcode: productForm.barcode, category: productForm.category, price: parseFloat(productForm.price), stock: parseInt(productForm.stock), active: true });
         addAuditLog("Product Updated", currentUser?.name || 'system', `Product ${productForm.name} updated`, "Medium");
@@ -220,9 +300,10 @@ export default function App() {
         alert("✅ Product added successfully");
       }
 
-      // refresh products
-      const serverProducts = await fetchProducts();
-      if (Array.isArray(serverProducts)) setProducts(serverProducts);
+      if (getStoredToken()) {
+        const serverProducts = await fetchProducts();
+        if (Array.isArray(serverProducts)) setProducts(serverProducts);
+      }
     } catch (err) {
       console.error(err);
       alert('Product save failed: ' + (err?.response?.data?.message || err.message));
@@ -233,6 +314,13 @@ export default function App() {
 
   const handleDeactivateProduct = useCallback(async (id) => {
     try {
+      if (!getStoredToken()) {
+        const target = products.find(p => p.id === id);
+        setProducts(prev => prev.map(p => p.id === id ? { ...p, active: false } : p));
+        addAuditLog("Product Deactivated (demo)", currentUser?.name || 'system', `Product ${target?.name || id} deactivated`, "Medium");
+        return;
+      }
+
       await deactivateProduct(id);
       const serverProducts = await fetchProducts();
       if (Array.isArray(serverProducts)) setProducts(serverProducts);
@@ -241,7 +329,7 @@ export default function App() {
       console.error(err);
       alert('Deactivate failed: ' + (err?.response?.data?.message || err.message));
     }
-  }, [currentUser, addAuditLog]);
+  }, [products, currentUser, addAuditLog]);
 
   const handleEditProduct = useCallback((product) => {
     setProductForm({ name: product.name, barcode: product.barcode, category: product.category, price: product.price.toString(), stock: product.stock.toString() });
@@ -287,7 +375,7 @@ export default function App() {
       addAuditLog("User Created", currentUserName || 'system', `New ${userForm.role} account: ${userForm.name}`, "High");
     }
     setUserForm({ name: "", password: "", role: "Cashier", status: "Active" });
-  }, [users, userForm, editingUserId, currentUser, validateUserForm, addAuditLog]);
+  }, [users, userForm, editingUserId, currentUserName, validateUserForm, addAuditLog]);
 
   const handleEditUser = useCallback((user) => {
     setUserForm({ name: user.name, password: user.password, role: user.role, status: user.status });
@@ -297,6 +385,7 @@ export default function App() {
   // ==================== CART MANAGEMENT ====================
   const [cart, dispatchCart] = useReducer(cartReducer, []);
   const [scannedBarcode, setScannedBarcode] = useState("");
+  const [scannerActive, setScannerActive] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [voidItemId, setVoidItemId] = useState(null);
 
@@ -309,19 +398,54 @@ export default function App() {
       alert("❌ Out of stock - cannot add");
       return;
     }
+    const currentQty = cart.find(item => item.id === product.id)?.qty || 0;
+    if (currentQty >= product.stock) {
+      alert(`Only ${product.stock} unit(s) available for ${product.name}`);
+      return;
+    }
     if (product.stock < 5) {
       alert(`⚠️ Low stock warning: Only ${product.stock} unit(s) remaining`);
     }
-    dispatchCart({ type: "ADD_ITEM", payload: { id: product.id, name: product.name, price: product.price } });
-  }, []);
+    dispatchCart({ type: "ADD_ITEM", payload: { id: product.id, name: product.name, price: product.price, stock: product.stock } });
+  }, [cart]);
 
-  const handleBarcodeSearch = useCallback((barcode) => {
-    const product = products.find(p => p.barcode === barcode && p.active);
+  // add product from the search box (by name, barcode, or category)
+  const doAddFromSearch = useCallback(() => {
+    const q = (productSearch || '').trim();
+    if (!q) return;
+    const low = q.toLowerCase();
+    const found = products.find(p => p.barcode === q || [p.name, p.barcode, p.category].join(' ').toLowerCase().includes(low));
+    if (found) {
+      handleAddToCart(found);
+      setProductSearch('');
+    } else {
+      alert('Product not found. Try scanning or check spelling.');
+    }
+  }, [productSearch, products, handleAddToCart]);
+
+  const handleBarcodeSearch = useCallback(async (barcode) => {
+    const code = (barcode || '').trim();
+    if (!code) return;
+    const product = products.find(p => String(p.barcode).trim() === code && p.active);
     if (product) {
       handleAddToCart(product);
       setScannedBarcode("");
     } else {
-      const foundInactive = products.find(p => p.barcode === barcode);
+      const foundInactive = products.find(p => String(p.barcode).trim() === code);
+      if (!foundInactive) {
+        try {
+          const serverProduct = await fetchProductByBarcode(code);
+          setProducts(prev => prev.some(p => p.id === serverProduct.id) ? prev : [serverProduct, ...prev]);
+          handleAddToCart(serverProduct);
+          setScannedBarcode("");
+          return;
+        } catch (err) {
+          if (err?.response?.status !== 404) {
+            alert("Barcode lookup failed. Please check the API connection and try again.");
+            return;
+          }
+        }
+      }
       if (foundInactive && !foundInactive.active) {
         alert("❌ Product is inactive and cannot be sold");
       } else {
@@ -335,8 +459,13 @@ export default function App() {
   }, []);
 
   const handleUpdateQuantity = useCallback((itemId, qty) => {
-    dispatchCart({ type: "UPDATE_QUANTITY", payload: { id: itemId, qty } });
-  }, []);
+    const requestedQty = Number.isFinite(qty) ? qty : 1;
+    const item = cart.find(cartItem => cartItem.id === itemId);
+    if (item?.stock && requestedQty > item.stock) {
+      alert(`Only ${item.stock} unit(s) available for ${item.name}`);
+    }
+    dispatchCart({ type: "UPDATE_QUANTITY", payload: { id: itemId, qty: requestedQty } });
+  }, [cart]);
 
   const subtotal = useMemo(() => cart.reduce((sum, item) => sum + item.qty * item.price, 0), [cart]);
   const discountRate = discount === "senior" || discount === "pwd" ? 0.2 : discount === "athlete" || discount === "solo" ? 0.1 : 0;
@@ -359,9 +488,12 @@ export default function App() {
 
     if (confirmed) {
       try {
-        await apiCancelSale({ reason: cancelReason, items: cart });
+        const token = getStoredToken();
+        if (token) {
+          await apiCancelSale({ reason: cancelReason, items: cart });
+        }
         dispatchCart({ type: "CLEAR_CART" });
-        addAuditLog("Sale Cancelled", currentUser?.name || 'Unknown', `Reason: ${cancelReason}`, "Medium");
+        addAuditLog(token ? "Sale Cancelled" : "Sale Cancelled (demo)", currentUser?.name || 'Unknown', `Reason: ${cancelReason}`, "Medium");
         setCancelReason("");
         alert("✅ Sale cancelled successfully. Cart has been cleared.");
       } catch (err) {
@@ -384,10 +516,33 @@ export default function App() {
       alert("Cart is empty");
       return;
     }
+    // If no API token is present, run a local demo payment flow so demo users can test without backend
+    const token = getStoredToken();
+    if (!token) {
+      try {
+        const saved = normalizeSale({ id: Date.now(), items: cart.map(i => ({ id: i.id, qty: i.qty, price: i.price, name: i.name })), total, discount, timestamp: getCurrentTime(), cashier: currentUser?.name || 'Demo' }, currentUser);
+        setTransactions(prev => [...prev, saved]);
+        // decrease local product stock
+        setProducts(prev => prev.map(p => {
+          const c = cart.find(ci => ci.id === p.id);
+          if (!c) return p;
+          return { ...p, stock: Math.max(0, p.stock - c.qty) };
+        }));
+        addAuditLog("Sale Completed (demo)", currentUser?.name || 'Demo', `TXN-${saved.id} completed for ${peso(saved.total || total)}`, "High");
+        dispatchCart({ type: "CLEAR_CART" });
+        setDiscount("none");
+        alert(`✅ Payment successful (demo)! Transaction ID: TXN-${saved.id}\n\nStock has been updated locally.`);
+        return;
+      } catch (err) {
+        console.error(err);
+        alert("Payment failed (demo): " + (err?.message || err));
+        return;
+      }
+    }
 
     try {
       const payload = { items: cart.map(i => ({ id: i.id, qty: i.qty, price: i.price })), discount };
-      const saved = await apiCreateSale(payload);
+      const saved = normalizeSale(await apiCreateSale(payload), currentUser);
       setTransactions(prev => [...prev, saved]);
 
       // reload products from API to get fresh stock
@@ -406,7 +561,7 @@ export default function App() {
       console.error(err);
       alert("Payment failed: " + (err?.response?.data?.message || err.message));
     }
-  }, [cart, discount, currentUser, addAuditLog]);
+  }, [cart, discount, total, currentUser, addAuditLog]);
 
   // ==================== POST-VOID & APPROVAL ====================
   const [postVoidForm, setPostVoidForm] = useState({ txnId: "", reason: "", supervisor: "" });
@@ -426,12 +581,16 @@ export default function App() {
         alert("Transaction not found");
         return;
       }
+      setProducts(products.map(product => {
+        const item = txn.items?.find(i => i.id === product.id);
+        return item ? { ...product, stock: product.stock + item.qty } : product;
+      }));
       setTransactions(transactions.filter(t => t.id.toString() !== postVoidForm.txnId));
       addAuditLog("Post-void Approved", postVoidForm.supervisor, `TXN-${postVoidForm.txnId} reversed. Reason: ${postVoidForm.reason}`, "High");
       alert("Post-void approved and transaction reversed");
       setPostVoidForm({ txnId: "", reason: "", supervisor: "" });
     }
-  }, [postVoidForm, transactions, addAuditLog]);
+  }, [postVoidForm, transactions, products, addAuditLog]);
 
   // ==================== RECEIPT MANAGEMENT ====================
   const [reprintTxnId, setReprintTxnId] = useState("");
@@ -494,10 +653,23 @@ export default function App() {
   }, []);
 
   const handleReprintReceipt = useCallback(async () => {
+    const localReceipt = transactions.find(t => t.id.toString() === reprintTxnId);
+    if (!reprintTxnId.trim()) {
+      alert("Enter a transaction ID");
+      return;
+    }
+
     try {
-      // mark as reprinted on server and fetch updated sale
-      const updated = await apiReprintReceipt(reprintTxnId);
-      setReprintedReceipt(updated);
+      const updated = getStoredToken()
+        ? normalizeSale(await apiReprintReceipt(reprintTxnId), currentUser)
+        : normalizeSale({ ...localReceipt, reprinted: true }, currentUser);
+
+      if (!localReceipt && !getStoredToken()) {
+        alert("Transaction not found");
+        return;
+      }
+
+      setReprintedReceipt(updated.items.length ? updated : normalizeSale({ ...localReceipt, ...updated, reprinted: true }, currentUser));
       setTransactions(prev => prev.map(t => t.id.toString() === reprintTxnId ? { ...t, reprinted: true } : t));
       addAuditLog("Receipt Reprinted", currentUser?.name || 'Unknown', `TXN-${reprintTxnId} reprinted`, "Medium");
       setReprintTxnId("");
@@ -505,7 +677,7 @@ export default function App() {
       console.error(err);
       alert("❌ Transaction not found");
     }
-  }, [reprintTxnId, currentUser, addAuditLog]);
+  }, [reprintTxnId, transactions, currentUser, addAuditLog]);
 
   // ==================== KPI CALCULATIONS ====================
   const totalSales = useMemo(() => transactions.reduce((sum, t) => sum + t.total, 0), [transactions]);
@@ -548,7 +720,7 @@ export default function App() {
     };
 
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-3">
+      <div className="login-screen min-h-screen flex items-center justify-center p-3">
           <div className="w-full max-w-lg relative z-10">
           {/* Mobile Header */}
           <div className="md:hidden text-center mb-8">
@@ -622,7 +794,7 @@ export default function App() {
                 <div className="w-full border-t-2 border-gray-200"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-3 bg-white text-gray-600 font-semibold">Quick Access</span>
+                <span className="px-3 bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 font-semibold">Quick Access</span>
               </div>
             </div>
 
@@ -650,39 +822,30 @@ export default function App() {
             </div>
 
             {/* Helpful Tip */}
-            <div className="mt-8 p-4 bg-amber-50 border-2 border-amber-200 rounded-xl">
-              <p className="text-amber-900 text-sm text-center font-medium">
+            <div className="mt-8 p-4 bg-amber-50 dark:bg-slate-900 border-2 border-amber-200 dark:border-slate-700 rounded-xl">
+              <p className="text-amber-900 dark:text-amber-300 text-sm text-center font-medium">
                 💡 <strong>Tip:</strong> Use password <strong>1234</strong> for all demo accounts
               </p>
             </div>
-          </div>
 
-          {/* Footer */}
-          <div className="text-center mt-8">
-            <p className="text-gray-400 text-xs">
-              © 2026 RetailPOS Pro. All rights reserved.
-            </p>
-            <p className="text-gray-500 text-xs mt-1">Advanced Inventory & Sales Management System</p>
           </div>
         </div>
       </div>
     );
   }
 
-  // ==================== MAIN APP ====================
   return (
-    <div className="flex h-screen bg-gray-100 overflow-hidden">
-      {/* SIDEBAR - Mobile: hidden, Tablet+: visible */}
-      <aside className="hidden md:flex md:w-64 lg:w-72 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white shadow-2xl flex-col overflow-y-auto">
-        <div className="p-4 md:p-6 border-b border-slate-700">
-          <div className="flex items-center gap-3 md:gap-4">
-            <img src="/logo.svg" alt="RetailPOS Pro" className="w-10 h-10 md:w-12 md:h-12 animate-pulse" />
-            <div>
-              <h2 className="text-lg md:text-xl font-bold text-white">RetailPOS Pro</h2>
-              <p className="text-xs md:text-sm text-slate-300">v2.0 Advanced</p>
-            </div>
-          </div>
-        </div>
+    <div className="pos-shell min-h-screen flex">
+            <aside className="sidebar-panel hidden md:flex md:w-64 lg:w-72 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white shadow-2xl flex-col overflow-y-auto">
+              <div className="p-4 md:p-6 border-b border-slate-700">
+                <div className="flex items-center gap-3 md:gap-4">
+                  <img src="/logo.svg" alt="RetailPOS Pro" className="w-10 h-10 md:w-12 md:h-12 animate-pulse" />
+                  <div>
+                    <h2 className="text-lg md:text-xl font-bold text-white">RetailPOS Pro</h2>
+                    <p className="text-xs md:text-sm text-slate-300">v2.0 Advanced</p>
+                  </div>
+                </div>
+              </div>
 
         <nav className="flex-1 p-4 md:p-6 space-y-2">
           {navItems.map((item) => (
@@ -770,7 +933,7 @@ export default function App() {
         </div>
 
         {/* CONTENT AREA */}
-        <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">{activeTab === "sales" && (
+        <div className="content-stage p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">{activeTab === "sales" && (
           <>
             <div className="card-base p-4 md:p-6 mb-6">
               <div>
@@ -781,25 +944,25 @@ export default function App() {
               </div>
             </div>
 
-            {/* KPI GRID - Responsive */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6">
+            {/* KPI GRID - Responsive (includes QuickPad) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6 mb-4 items-stretch">
               {kpis.map((item, idx) => {
                 const colorClass = ["card-blue", "card-purple", "card-cyan", "card-teal"][idx % 4];
                 return (
-                  <div key={item.label} className={`card-base ${colorClass} p-4 md:p-5`}>
+                  <div key={item.label} className={`card-base ${colorClass} p-4 md:p-5 h-full flex flex-col justify-between`}>
                     <p className="text-slate-600 text-sm md:text-base mb-2 font-semibold uppercase tracking-wide">{item.label}</p>
                     <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-1">{item.value}</h2>
                     <small className="text-slate-500 text-xs md:text-sm">{item.hint}</small>
                   </div>
                 );
               })}
+
+              {/* Embed a compact QuickPad as part of highlights */}
+              <QuickPad compact onSubmit={handleBarcodeSearch} scannerActive={scannerActive} onToggleScanner={() => setScannerActive(s => !s)} />
             </div>
 
             {/* SALES GRID - Mobile stacked, Desktop 2-col */}
-            <div className="mb-6">
-              <QuickPad />
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6"> 
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
               {/* Products Section */}
               <div className="lg:col-span-2 card-indigo p-4 md:p-6">
                 <div className="mb-3 inline-flex items-center gap-2 px-2 py-1 rounded-full bg-indigo-100 text-indigo-700 text-xs font-semibold">
@@ -816,7 +979,7 @@ export default function App() {
                     className="input-base text-xs md:text-sm sm:col-span-2"
                   />
                   <button 
-                    onClick={() => productSearch && handleAddToCart(products.find(p => p.name.toLowerCase().includes(productSearch.toLowerCase())))}
+                    onClick={doAddFromSearch}
                     className="btn-primary text-xs md:text-sm"
                   >
                     Add
@@ -827,8 +990,9 @@ export default function App() {
                   <input 
                     value={scannedBarcode}
                     onChange={(e) => setScannedBarcode(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && handleBarcodeSearch(scannedBarcode)}
+                    onKeyDown={(e) => e.key === "Enter" && handleBarcodeSearch(scannedBarcode)}
                     placeholder="Scan barcode..."
+                    autoComplete="off"
                     className="input-base text-xs md:text-sm sm:col-span-2"
                   />
                   <button 

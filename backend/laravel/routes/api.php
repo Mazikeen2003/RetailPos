@@ -20,6 +20,7 @@ Route::post('/login', [AuthController::class, 'login']);
 
 // Public product listing
 Route::get('/products', [ProductController::class, 'index']);
+Route::get('/products/barcode/{barcode}', [ProductController::class, 'barcode']);
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
