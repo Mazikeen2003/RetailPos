@@ -14,6 +14,6 @@ export async function createProduct(payload) {
 }
 
 export async function updateProduct(id, payload) {
-  const response = await api.patch(`/products/${id}`, payload);
+  const response = await api.put(`/products/${id}`, payload);
   return response.data;
 }

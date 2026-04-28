@@ -93,6 +93,7 @@ export default function PosDashboardPage({ user, onLogout }) {
   const [paying, setPaying] = useState(false);
   const [pageError, setPageError] = useState("");
   const [saleMessage, setSaleMessage] = useState("");
+  const [productToast, setProductToast] = useState(null);
   const [productForm, setProductForm] = useState(defaultProductForm);
   const [productErrors, setProductErrors] = useState({});
   const [editingProductId, setEditingProductId] = useState(null);
@@ -115,6 +116,22 @@ export default function PosDashboardPage({ user, onLogout }) {
           { id: "activity", label: "Activity" },
           { id: "catalog", label: "Catalog" },
         ];
+
+  const showProductToast = (message) => {
+    setProductToast({ id: Date.now(), message });
+  };
+
+  useEffect(() => {
+    if (!productToast) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setProductToast(null);
+    }, 2800);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [productToast]);
 
   const refreshDashboard = async () => {
     setDashboardLoading(true);
@@ -415,10 +432,10 @@ export default function PosDashboardPage({ user, onLogout }) {
     try {
       if (editingProductId) {
         await updateProduct(editingProductId, payload);
-        setSaleMessage("Product updated successfully.");
+        showProductToast("Product updated successfully");
       } else {
         await createProduct(payload);
-        setSaleMessage("Product created successfully.");
+        showProductToast("Product added successfully");
       }
 
       setProductForm(defaultProductForm);
@@ -483,6 +500,18 @@ export default function PosDashboardPage({ user, onLogout }) {
 
   return (
     <div className="dashboard-shell">
+      {productToast && (
+        <div className="product-success-toast" role="status" aria-live="polite">
+          <div className="product-success-check">
+            <span>✓</span>
+          </div>
+          <div>
+            <p className="product-success-title">Success</p>
+            <p className="product-success-message">{productToast.message}</p>
+          </div>
+        </div>
+      )}
+
       <aside className="dashboard-sidebar">
         <div>
           <p className="eyebrow">RetailPOS</p>

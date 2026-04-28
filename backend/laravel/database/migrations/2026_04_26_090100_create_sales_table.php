@@ -17,6 +17,7 @@ return new class extends Migration
             $table->decimal('discount_amount', 10, 2)->default(0);
             $table->decimal('total', 10, 2);
             $table->string('status')->default('completed');
+            $table->boolean('reprinted')->default(false);
             $table->timestamps();
         });
     }

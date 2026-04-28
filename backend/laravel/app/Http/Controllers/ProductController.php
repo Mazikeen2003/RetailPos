@@ -53,6 +53,13 @@ class ProductController extends Controller
         return response()->json($product);
     }
 
+    public function barcode(string $barcode)
+    {
+        $product = Product::where('barcode', $barcode)->firstOrFail();
+
+        return response()->json($product);
+    }
+
     public function update(Request $request, string $id)
     {
         $this->ensureAdmin($request);
