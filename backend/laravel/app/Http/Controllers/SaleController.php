@@ -89,14 +89,20 @@ class SaleController extends Controller
                 ];
             }
 
-            $discountAmount = $subtotal * $discountRate;
+            $discountAmount = round($subtotal * $discountRate, 2);
+            $taxableTotal = round($subtotal - $discountAmount, 2);
+            $vatableSales = round($taxableTotal / 1.12, 2);
+            $vatAmount = round($taxableTotal - $vatableSales, 2);
+
             $sale = Sale::create([
                 'cashier_id' => $request->user()->id,
                 'subtotal' => $subtotal,
                 'discount_type' => $discountType,
                 'discount_rate' => $discountRate,
                 'discount_amount' => $discountAmount,
-                'total' => $subtotal - $discountAmount,
+                'vatable_sales' => $vatableSales,
+                'vat_amount' => $vatAmount,
+                'total' => $taxableTotal,
                 'status' => 'completed',
             ]);
 
@@ -113,6 +119,8 @@ class SaleController extends Controller
             'sale' => $sale,
             'subtotal' => (float) $sale->subtotal,
             'discount_amount' => (float) $sale->discount_amount,
+            'vatable_sales' => (float) $sale->vatable_sales,
+            'vat_amount' => (float) $sale->vat_amount,
             'total' => (float) $sale->total,
         ], 201);
     }

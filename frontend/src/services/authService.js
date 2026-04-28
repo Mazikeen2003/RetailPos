@@ -14,3 +14,8 @@ export async function logout() {
   const response = await api.post("/logout");
   return response.data;
 }
+
+export async function authorizeSupervisor(credentials) {
+  const response = await api.post("/supervisor-authorizations", credentials);
+  return response.data;
+}

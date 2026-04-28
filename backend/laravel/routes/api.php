@@ -30,6 +30,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/profile', [AuthController::class, 'profile']);
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::post('/supervisor-authorizations', [AuthController::class, 'authorizeSupervisor']);
 
     Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
 

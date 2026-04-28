@@ -9,6 +9,7 @@ import NoticeBanner from "../components/NoticeBanner";
 import ProductResults from "../components/ProductResults";
 import RoleTabs from "../components/RoleTabs";
 import { createAuditLog, getAuditLogs } from "../services/auditService";
+import { authorizeSupervisor } from "../services/authService";
 import { getDashboardSummary } from "../services/dashboardService";
 import { createProduct, getProducts, updateProduct } from "../services/productService";
 import { createSale, getSales } from "../services/salesService";
@@ -21,6 +22,8 @@ const discountRates = {
   athlete: 0.1,
   solo: 0.1,
 };
+
+const vatRate = 0.12;
 
 const defaultProductForm = {
   name: "",
@@ -91,6 +94,14 @@ export default function PosDashboardPage({ user, onLogout }) {
   const [salesLoading, setSalesLoading] = useState(true);
   const [auditLoading, setAuditLoading] = useState(false);
   const [paying, setPaying] = useState(false);
+  const [cancelApprovalOpen, setCancelApprovalOpen] = useState(false);
+  const [cancelApprovalLoading, setCancelApprovalLoading] = useState(false);
+  const [cancelApprovalError, setCancelApprovalError] = useState("");
+  const [cancelApprovalForm, setCancelApprovalForm] = useState({
+    email: "",
+    password: "",
+    reason: "",
+  });
   const [pageError, setPageError] = useState("");
   const [saleMessage, setSaleMessage] = useState("");
   const [productToast, setProductToast] = useState(null);
@@ -246,6 +257,8 @@ export default function PosDashboardPage({ user, onLogout }) {
   });
   const discountAmount = subtotal * (discountRates[discountType] || 0);
   const total = subtotal - discountAmount;
+  const vatableSales = total / (1 + vatRate);
+  const vatAmount = total - vatableSales;
   const metrics = dashboard?.metrics || {
     totalSales: 0,
     transactions: 0,
@@ -406,10 +419,42 @@ export default function PosDashboardPage({ user, onLogout }) {
       return;
     }
 
-    await recordAudit("cancel_sale", `Cancelled ongoing sale worth ${peso(total)} before payment.`);
-    setCart([]);
-    setDiscountType("none");
-    setSaleMessage("Current sale cancelled.");
+    setCancelApprovalOpen(true);
+    setCancelApprovalError("");
+  };
+
+  const handleCancelApprovalSubmit = async (event) => {
+    event.preventDefault();
+    setCancelApprovalError("");
+
+    if (!cancelApprovalForm.reason.trim()) {
+      setCancelApprovalError("Cancellation reason is required.");
+      return;
+    }
+
+    setCancelApprovalLoading(true);
+
+    try {
+      const approval = await authorizeSupervisor({
+        email: cancelApprovalForm.email,
+        password: cancelApprovalForm.password,
+      });
+
+      await recordAudit(
+        "cancel_sale",
+        `Cancelled ongoing sale worth ${peso(total)} before payment. Reason: ${cancelApprovalForm.reason}. Approved by ${approval.supervisor?.name || cancelApprovalForm.email}.`
+      );
+
+      setCancelApprovalOpen(false);
+      setCancelApprovalForm({ email: "", password: "", reason: "" });
+      setCart([]);
+      setDiscountType("none");
+      setSaleMessage("Current sale cancelled with supervisor approval.");
+    } catch (error) {
+      setCancelApprovalError(getApiErrorMessage(error, "Supervisor approval failed."));
+    } finally {
+      setCancelApprovalLoading(false);
+    }
   };
 
   const handleReprintReceipt = async (sale) => {
@@ -748,10 +793,22 @@ export default function PosDashboardPage({ user, onLogout }) {
               cart={cart}
               discountType={discountType}
               discountAmount={discountAmount}
+              vatableSales={vatableSales}
+              vatAmount={vatAmount}
               subtotal={subtotal}
               total={total}
               paying={paying}
+              cancelApprovalOpen={cancelApprovalOpen}
+              cancelApprovalForm={cancelApprovalForm}
+              cancelApprovalError={cancelApprovalError}
+              cancelApprovalLoading={cancelApprovalLoading}
               currentTime={currentTime}
+              onCancelApprovalChange={setCancelApprovalForm}
+              onCancelApprovalSubmit={handleCancelApprovalSubmit}
+              onCancelApprovalClose={() => {
+                setCancelApprovalOpen(false);
+                setCancelApprovalError("");
+              }}
               onDiscountChange={setDiscountType}
               onQuantityChange={handleQuantityChange}
               onRemove={(productId) => handleQuantityChange(productId, 0)}

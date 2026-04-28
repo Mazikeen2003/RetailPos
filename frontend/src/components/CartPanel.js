@@ -9,10 +9,19 @@ export default function CartPanel({
   cart,
   discountType,
   discountAmount,
+  vatableSales,
+  vatAmount,
   subtotal,
   total,
   paying,
+  cancelApprovalOpen,
+  cancelApprovalForm,
+  cancelApprovalError,
+  cancelApprovalLoading,
   currentTime,
+  onCancelApprovalChange,
+  onCancelApprovalSubmit,
+  onCancelApprovalClose,
   onDiscountChange,
   onQuantityChange,
   onRemove,
@@ -20,6 +29,7 @@ export default function CartPanel({
   onPay,
 }) {
   return (
+    <>
     <section className="panel sale-panel">
       <div className="panel-heading">
         <div>
@@ -83,6 +93,14 @@ export default function CartPanel({
           <span>Discount</span>
           <strong>{peso(discountAmount)}</strong>
         </div>
+        <div>
+          <span>VATable Sales</span>
+          <strong>{peso(vatableSales)}</strong>
+        </div>
+        <div>
+          <span>VAT 12%</span>
+          <strong>{peso(vatAmount)}</strong>
+        </div>
         <div className="total-line">
           <span>Total</span>
           <strong>{peso(total)}</strong>
@@ -98,5 +116,68 @@ export default function CartPanel({
         </button>
       </div>
     </section>
+    {cancelApprovalOpen && (
+      <div className="modal-overlay" role="presentation" onClick={onCancelApprovalClose}>
+        <div
+          className="modal-card supervisor-approval-card"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="cancel-approval-title"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="modal-heading">
+            <div>
+              <p className="eyebrow">Supervisor Approval</p>
+              <h2 id="cancel-approval-title">Cancel Sale Authorization</h2>
+              <p className="panel-empty">A supervisor or admin must approve cancellations before payment confirmation.</p>
+            </div>
+            <button type="button" className="btn btn-secondary slim" onClick={onCancelApprovalClose}>
+              Close
+            </button>
+          </div>
+
+          <form className="admin-form-grid modal-form-grid" onSubmit={onCancelApprovalSubmit}>
+            <label className="field">
+              <span>Supervisor/Admin Email</span>
+              <input
+                type="email"
+                value={cancelApprovalForm.email}
+                onChange={(event) => onCancelApprovalChange((current) => ({ ...current, email: event.target.value }))}
+                placeholder="supervisor@test.com"
+              />
+            </label>
+            <label className="field">
+              <span>Password</span>
+              <input
+                type="password"
+                value={cancelApprovalForm.password}
+                onChange={(event) => onCancelApprovalChange((current) => ({ ...current, password: event.target.value }))}
+                placeholder="Supervisor password"
+              />
+            </label>
+            <label className="field supervisor-reason-field">
+              <span>Cancellation Reason</span>
+              <textarea
+                value={cancelApprovalForm.reason}
+                onChange={(event) => onCancelApprovalChange((current) => ({ ...current, reason: event.target.value }))}
+                placeholder="Explain why this sale is being cancelled"
+              />
+            </label>
+            {cancelApprovalError ? (
+              <small className="field-error supervisor-approval-error">{cancelApprovalError}</small>
+            ) : null}
+            <div className="modal-actions">
+              <button type="button" className="btn btn-secondary" onClick={onCancelApprovalClose}>
+                Keep Sale
+              </button>
+              <button type="submit" className="btn btn-primary" disabled={cancelApprovalLoading}>
+                {cancelApprovalLoading ? "Checking..." : "Approve Cancel Sale"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

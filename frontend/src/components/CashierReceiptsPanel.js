@@ -43,6 +43,12 @@ export default function CashierReceiptsPanel({ sales, onReprint }) {
             <span>Total</span>
             <strong>{peso(lastSale.total)}</strong>
           </div>
+          <div className="receipt-meta-grid">
+            <span>VATable Sales</span>
+            <strong>{peso(lastSale.vatable_sales)}</strong>
+            <span>VAT 12%</span>
+            <strong>{peso(lastSale.vat_amount)}</strong>
+          </div>
           <button type="button" className="btn btn-primary" onClick={() => onReprint(lastSale)}>
             Reprint Last Receipt
           </button>

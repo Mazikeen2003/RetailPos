@@ -60,6 +60,8 @@ class SaleControllerTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('subtotal', 200)
             ->assertJsonPath('discount_amount', 40)
+            ->assertJsonPath('vatable_sales', 142.86)
+            ->assertJsonPath('vat_amount', 17.14)
             ->assertJsonPath('total', 160);
 
         $this->assertSame(3, $product->fresh()->stock);

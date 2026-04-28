@@ -12,6 +12,8 @@ class Sale extends Model
         'discount_type',
         'discount_rate',
         'discount_amount',
+        'vatable_sales',
+        'vat_amount',
         'total',
         'status',
         'reprinted',
@@ -23,6 +25,8 @@ class Sale extends Model
             'subtotal' => 'decimal:2',
             'discount_rate' => 'decimal:2',
             'discount_amount' => 'decimal:2',
+            'vatable_sales' => 'decimal:2',
+            'vat_amount' => 'decimal:2',
             'total' => 'decimal:2',
             'reprinted' => 'boolean',
         ];
