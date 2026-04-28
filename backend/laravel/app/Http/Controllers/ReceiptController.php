@@ -24,11 +24,10 @@ class ReceiptController extends Controller
         $sale->save();
 
         AuditLog::create([
-            'action' => 'Receipt Reprinted',
-            'user' => optional($user)->name ?? 'system',
             'user_id' => optional($user)->id,
+            'action' => 'Receipt Reprinted',
             'details' => "TXN-{$sale->id} reprinted",
-            'level' => 'Medium',
+            'logged_at' => now(),
         ]);
 
         return response()->json($sale->load('items.product'));

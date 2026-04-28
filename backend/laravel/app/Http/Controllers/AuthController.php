@@ -6,6 +6,7 @@ use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
@@ -62,6 +63,41 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Logged out successfully'
+        ]);
+    }
+
+    public function authorizeSupervisor(Request $request)
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email'],
+            'password' => ['required', 'string'],
+        ]);
+
+        $supervisor = User::with('role')
+            ->where('email', $validated['email'])
+            ->first();
+
+        if (
+            !$supervisor ||
+            !Hash::check($validated['password'], $supervisor->password) ||
+            !in_array(optional($supervisor->role)->name, ['Admin', 'Supervisor'], true) ||
+            !$supervisor->is_active
+        ) {
+            return response()->json([
+                'message' => 'Supervisor or admin approval is required.',
+            ], 403);
+        }
+
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'supervisor_authorization',
+            'details' => "Cancellation approved by {$supervisor->email}.",
+            'logged_at' => now(),
+        ]);
+
+        return response()->json([
+            'message' => 'Supervisor approval confirmed.',
+            'supervisor' => $supervisor->only(['id', 'name', 'email']),
         ]);
     }
 }

@@ -14,7 +14,7 @@ class ProductController extends Controller
 
     public function index(Request $request)
     {
-        $search = $request->query('search');
+        $search = $request->query('search', $request->query('q'));
 
         $products = Product::when($search, function ($query, $search) {
             return $query->where('name', 'like', "%{$search}%")
@@ -53,6 +53,13 @@ class ProductController extends Controller
         return response()->json($product);
     }
 
+    public function barcode(string $barcode)
+    {
+        $product = Product::where('barcode', $barcode)->firstOrFail();
+
+        return response()->json($product);
+    }
+
     public function update(Request $request, string $id)
     {
         $this->ensureAdmin($request);
@@ -78,13 +85,12 @@ class ProductController extends Controller
 
     public function destroy(string $id)
     {
-        abort(403, 'Products should be deactivated instead of deleted.');
-
         $product = Product::findOrFail($id);
-        $product->delete();
+        $product->update(['active' => false]);
 
         return response()->json([
-            'message' => 'Product deleted successfully'
+            'message' => 'Product deactivated successfully',
+            'product' => $product,
         ]);
     }
 }
