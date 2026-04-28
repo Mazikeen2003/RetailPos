@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\PostVoidRequest;
+use App\Models\AuditLog;
 use App\Models\Product;
 use App\Models\Sale;
 use Illuminate\Http\Request;
@@ -14,7 +16,7 @@ class SaleController extends Controller
     {
         return response()->json(
             Sale::query()
-                ->with(['cashier:id,name', 'items'])
+                ->with(['cashier:id,name', 'items', 'voidedBy:id,name'])
                 ->latest()
                 ->limit(20)
                 ->get()
@@ -23,6 +25,8 @@ class SaleController extends Controller
 
     public function store(Request $request)
     {
+        $this->ensureCashier($request);
+
         $validated = $request->validate([
             'discountType' => ['nullable', 'string', Rule::in(['none', 'senior', 'pwd', 'athlete', 'solo'])],
             'discount' => ['nullable', 'string', Rule::in(['none', 'senior', 'pwd', 'athlete', 'solo'])],
@@ -123,5 +127,88 @@ class SaleController extends Controller
             'vat_amount' => (float) $sale->vat_amount,
             'total' => (float) $sale->total,
         ], 201);
+    }
+
+    public function postVoid(PostVoidRequest $request)
+    {
+        $this->ensureSupervisorAccess($request);
+
+        $validated = $request->validated();
+        $sale = Sale::findOrFail($validated['sale_id']);
+
+        return $this->voidSale((int) $sale->id, $request, $validated['reason']);
+    }
+
+    public function voidReceipt(Request $request, string $sale)
+    {
+        $this->ensureSupervisorAccess($request);
+
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'min:5'],
+        ]);
+
+        return $this->voidSale((int) $sale, $request, $validated['reason']);
+    }
+
+    private function ensureCashier(Request $request): void
+    {
+        abort_unless(optional($request->user()->role)->name === 'Cashier', 403, 'Cashier access required.');
+    }
+
+    private function ensureSupervisorAccess(Request $request): void
+    {
+        abort_unless(
+            in_array(optional($request->user()->role)->name, ['Admin', 'Supervisor'], true),
+            403,
+            'Supervisor or admin access required.'
+        );
+    }
+
+    private function voidSale(int|Sale $sale, Request $request, string $reason)
+    {
+        $voidedSale = DB::transaction(function () use ($sale, $request, $reason) {
+            $saleId = $sale instanceof Sale ? $sale->id : $sale;
+
+            $lockedSale = Sale::query()
+                ->with('items')
+                ->whereKey($saleId)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($lockedSale->status === 'voided') {
+                abort(422, 'This receipt has already been voided.');
+            }
+
+            if ($lockedSale->status !== 'completed') {
+                abort(422, 'Only completed receipts can be voided.');
+            }
+
+            foreach ($lockedSale->items as $item) {
+                if ($item->product_id) {
+                    Product::whereKey($item->product_id)->increment('stock', $item->quantity);
+                }
+            }
+
+            $lockedSale->forceFill([
+                'status' => 'voided',
+                'void_reason' => $reason,
+                'voided_by_id' => $request->user()->id,
+                'voided_at' => now(),
+            ])->save();
+
+            AuditLog::create([
+                'user_id' => $request->user()->id,
+                'action' => 'receipt_voided',
+                'details' => "Sale #{$lockedSale->id} was voided. Reason: {$reason}",
+                'logged_at' => now(),
+            ]);
+
+            return $lockedSale->load(['cashier:id,name', 'items.product', 'voidedBy:id,name']);
+        });
+
+        return response()->json([
+            'message' => "Sale #{$voidedSale->id} receipt voided successfully.",
+            'sale' => $voidedSale,
+        ]);
     }
 }

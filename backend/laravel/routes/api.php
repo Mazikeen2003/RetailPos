@@ -42,6 +42,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/sales', [SaleController::class, 'index']);
     Route::post('/sales', [SaleController::class, 'store']);
     Route::post('/sales/checkout', [SaleController::class, 'store']);
+    Route::post('/sales/post-void', [SaleController::class, 'postVoid']);
+    Route::post('/sales/{sale}/void', [SaleController::class, 'voidReceipt']);
 
     Route::get('/receipts/{sale}', [ReceiptController::class, 'show']);
     Route::post('/receipts/{sale}/reprint', [ReceiptController::class, 'reprint']);

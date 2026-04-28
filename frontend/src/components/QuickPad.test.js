@@ -4,7 +4,7 @@ import QuickPad from './QuickPad';
 
 test('renders QuickPad keypad and ENTER', async () => {
   render(<QuickPad />);
-  const input = screen.getByPlaceholderText(/scan or type barcode/i);
+  const input = screen.getByPlaceholderText(/scan barcode or search products/i);
   expect(input).toBeInTheDocument();
   const btn0 = screen.getByText('0');
   expect(btn0).toBeInTheDocument();
@@ -15,4 +15,14 @@ test('renders QuickPad keypad and ENTER', async () => {
   await userEvent.click(screen.getByText('1'));
   await userEvent.click(screen.getByText('2'));
   expect(input).toHaveValue('12');
+});
+
+test('submits typed search from QuickPad', async () => {
+  const onSubmit = jest.fn();
+  render(<QuickPad onSubmit={onSubmit} />);
+
+  const input = screen.getByPlaceholderText(/scan barcode or search products/i);
+  await userEvent.type(input, 'rice{enter}');
+
+  expect(onSubmit).toHaveBeenCalledWith('rice');
 });

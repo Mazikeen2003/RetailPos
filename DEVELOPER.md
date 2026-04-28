@@ -15,6 +15,14 @@ This document explains how to set up and run the backend (Laravel) and frontend 
 
 From `backend/laravel`:
 
+Fast local reset/setup from the repository root:
+
+```powershell
+.\setup_local.ps1 -Fresh
+```
+
+Use this when a teammate sees errors like `no such table: roles`; it recreates the local SQLite database, runs migrations, and seeds demo users/products.
+
 1. Install PHP deps:
 
 ```bash

@@ -20,6 +20,11 @@ export async function postVoid(payload) {
   return res.data;
 }
 
+export async function voidSale(id, reason) {
+  const res = await api.post(`/sales/${id}/void`, { reason });
+  return res.data;
+}
+
 export async function getReceipt(id) {
   const res = await api.get(`/receipts/${id}`);
   return res.data;

@@ -19,6 +19,13 @@ class ReceiptController extends Controller
     {
         /** @var \App\Models\Sale $sale */
         $sale = Sale::findOrFail($id);
+
+        if ($sale->status === 'voided') {
+            return response()->json([
+                'message' => 'Voided receipts cannot be reprinted.',
+            ], 422);
+        }
+
         $user = $request->user();
         $sale->reprinted = true;
         $sale->save();

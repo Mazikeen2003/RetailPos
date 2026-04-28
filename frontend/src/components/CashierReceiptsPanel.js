@@ -22,7 +22,7 @@ export default function CashierReceiptsPanel({ sales, onReprint }) {
       ) : (
         <div className="receipt-card thermal-receipt">
           <div className="receipt-headline">
-            <strong>REPRINT</strong>
+            <strong>{lastSale.status === "voided" ? "VOIDED" : "REPRINT"}</strong>
             <span>Sale #{lastSale.id}</span>
           </div>
           <div className="receipt-meta-grid">
@@ -30,6 +30,14 @@ export default function CashierReceiptsPanel({ sales, onReprint }) {
             <strong>{lastSale.cashier?.name || "Unknown cashier"}</strong>
             <span>Items</span>
             <strong>{lastSale.items.length}</strong>
+            <span>Status</span>
+            <strong>{lastSale.status === "voided" ? "Voided" : "Completed"}</strong>
+            {lastSale.void_reason && (
+              <>
+                <span>Void reason</span>
+                <strong>{lastSale.void_reason}</strong>
+              </>
+            )}
           </div>
           <div className="list-stack compact">
             {lastSale.items.map((item) => (
@@ -43,8 +51,13 @@ export default function CashierReceiptsPanel({ sales, onReprint }) {
             <span>Total</span>
             <strong>{peso(lastSale.total)}</strong>
           </div>
-          <button type="button" className="btn btn-primary" onClick={() => onReprint(lastSale)}>
-            Reprint Last Receipt
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => onReprint(lastSale)}
+            disabled={lastSale.status === "voided"}
+          >
+            {lastSale.status === "voided" ? "Receipt Voided" : "Reprint Last Receipt"}
           </button>
         </div>
       )}

@@ -15,7 +15,7 @@ class PostVoidRequest extends FormRequest
     {
         return [
             'sale_id' => ['required', 'integer', 'exists:sales,id'],
-            'reason' => ['required', 'string'],
+            'reason' => ['required', 'string', 'min:5'],
         ];
     }
 }

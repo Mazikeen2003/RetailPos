@@ -20,6 +20,9 @@ return new class extends Migration
             $table->decimal('total', 10, 2);
             $table->string('status')->default('completed');
             $table->boolean('reprinted')->default(false);
+            $table->foreignId('voided_by_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->text('void_reason')->nullable();
+            $table->timestamp('voided_at')->nullable();
             $table->timestamps();
         });
     }

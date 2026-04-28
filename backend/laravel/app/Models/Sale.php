@@ -17,6 +17,9 @@ class Sale extends Model
         'total',
         'status',
         'reprinted',
+        'voided_by_id',
+        'void_reason',
+        'voided_at',
     ];
 
     protected function casts(): array
@@ -29,6 +32,7 @@ class Sale extends Model
             'vat_amount' => 'decimal:2',
             'total' => 'decimal:2',
             'reprinted' => 'boolean',
+            'voided_at' => 'datetime',
         ];
     }
 
@@ -40,5 +44,10 @@ class Sale extends Model
     public function items()
     {
         return $this->hasMany(SaleItem::class);
+    }
+
+    public function voidedBy()
+    {
+        return $this->belongsTo(User::class, 'voided_by_id');
     }
 }

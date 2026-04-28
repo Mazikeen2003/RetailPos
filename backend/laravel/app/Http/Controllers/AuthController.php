@@ -7,11 +7,19 @@ use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
+use Throwable;
 
 class AuthController extends Controller
 {
     public function login(Request $request)
     {
+        if (!$this->databaseReady()) {
+            return response()->json([
+                'message' => 'Local database is not set up. Run setup_local.ps1 -Fresh from the project root, or run php artisan migrate --seed inside backend/laravel.',
+            ], 503);
+        }
+
         $validated = $request->validate([
             'email' => ['nullable', 'email'],
             'username' => ['nullable', 'string'],
@@ -155,5 +163,16 @@ class AuthController extends Controller
         );
 
         return $user->load('role');
+    }
+
+    private function databaseReady(): bool
+    {
+        try {
+            return Schema::hasTable('users')
+                && Schema::hasTable('roles')
+                && Schema::hasTable('personal_access_tokens');
+        } catch (Throwable) {
+            return false;
+        }
     }
 }

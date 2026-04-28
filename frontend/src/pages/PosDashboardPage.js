@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import AdminProductsPanel from "../components/AdminProductsPanel";
 import AdminUsersPanel from "../components/AdminUsersPanel";
-import BarcodePad from "../components/BarcodePad";
 import CartPanel from "../components/CartPanel";
 import CashierReceiptsPanel from "../components/CashierReceiptsPanel";
 import KpiCard from "../components/KpiCard";
 import NoticeBanner from "../components/NoticeBanner";
 import ProductResults from "../components/ProductResults";
+import QuickPad from "../components/QuickPad";
 import RoleTabs from "../components/RoleTabs";
 import { createAuditLog, getAuditLogs } from "../services/auditService";
 import { getDashboardSummary } from "../services/dashboardService";
 import { createProduct, getProducts, updateProduct } from "../services/productService";
-import { createSale, getSales } from "../services/salesService";
+import { createSale, getSales, reprintReceipt, voidSale } from "../services/salesService";
 import { createUser, getUserMeta, getUsers, updateUser } from "../services/userService";
 
 const discountRates = {
@@ -304,17 +304,19 @@ export default function PosDashboardPage({ darkMode, user, onLogout, onToggleDar
     }
   };
 
-  const handleScan = async (nextBarcode = barcode) => {
+  const handleQuickEntry = async (nextEntry = barcode) => {
     setSaleMessage("");
     setPageError("");
 
-    const trimmedBarcode = String(nextBarcode || "").trim();
+    const query = String(nextEntry || "").trim();
 
-    if (!trimmedBarcode) {
+    if (!query) {
       return;
     }
 
-    const localMatch = products.find((product) => product.barcode === trimmedBarcode);
+    const normalizedQuery = query.toLowerCase();
+    const localMatch = products.find((product) => product.barcode.toLowerCase() === normalizedQuery);
+
     if (localMatch) {
       handleAddToCart(localMatch);
       setBarcode("");
@@ -322,41 +324,30 @@ export default function PosDashboardPage({ darkMode, user, onLogout, onToggleDar
     }
 
     try {
-      const response = await getProducts(trimmedBarcode);
-      const exactMatch = response.find((product) => product.barcode === trimmedBarcode);
+      const response = await getProducts(query);
+      const exactMatch = response.find((product) => product.barcode.toLowerCase() === normalizedQuery);
 
-      if (!exactMatch) {
-        setPageError("Barcode not found.");
+      setProducts(response);
+      setActiveCategory("All");
+      setSearch(query);
+
+      if (exactMatch) {
+        handleAddToCart(exactMatch);
         setBarcode("");
         return;
       }
 
-      setProducts(response);
-      handleAddToCart(exactMatch);
+      if (response.length === 0) {
+        setPageError(`No products found for "${query}".`);
+      } else {
+        setSaleMessage(`Showing ${response.length} product(s) matching "${query}".`);
+      }
+
       setBarcode("");
     } catch (error) {
-      setPageError(error.response?.data?.message || "Barcode lookup failed.");
+      setPageError(error.response?.data?.message || "Quick pad search failed.");
       setBarcode("");
     }
-  };
-
-  const handleBarcodePadPress = (key) => {
-    if (key === "CLR") {
-      setBarcode("");
-      return;
-    }
-
-    if (key === "DEL") {
-      setBarcode((current) => current.slice(0, -1));
-      return;
-    }
-
-    if (key === "ENTER") {
-      handleScan(barcode);
-      return;
-    }
-
-    setBarcode((current) => `${current}${key}`);
   };
 
   const handlePay = async () => {
@@ -396,8 +387,40 @@ export default function PosDashboardPage({ darkMode, user, onLogout, onToggleDar
   };
 
   const handleReprintReceipt = async (sale) => {
-    await recordAudit("reprint_receipt", `Reprinted receipt for sale #${sale.id}.`);
-    setSaleMessage(`Receipt for sale #${sale.id} marked as REPRINT.`);
+    if (sale.status === "voided") {
+      setPageError("Voided receipts cannot be reprinted.");
+      return;
+    }
+
+    try {
+      await reprintReceipt(sale.id);
+      setSaleMessage(`Receipt for sale #${sale.id} marked as REPRINT.`);
+      await refreshSales();
+    } catch (error) {
+      setPageError(error.response?.data?.message || "Failed to reprint receipt.");
+    }
+  };
+
+  const handleVoidReceipt = async (sale) => {
+    if (sale.status === "voided") {
+      setPageError(`Sale #${sale.id} has already been voided.`);
+      return;
+    }
+
+    const reason = window.prompt(`Reason for voiding Sale #${sale.id}?`);
+
+    if (!reason || reason.trim().length < 5) {
+      setPageError("Void receipt requires a reason with at least 5 characters.");
+      return;
+    }
+
+    try {
+      const response = await voidSale(sale.id, reason.trim());
+      setSaleMessage(response.message || `Sale #${sale.id} receipt voided successfully.`);
+      await Promise.all([refreshDashboard(), refreshProducts(search), refreshSales(), refreshAuditLogs()]);
+    } catch (error) {
+      setPageError(error.response?.data?.message || "Failed to void receipt.");
+    }
   };
 
   const handleAdminProductSubmit = async (event) => {
@@ -694,17 +717,7 @@ export default function PosDashboardPage({ darkMode, user, onLogout, onToggleDar
               </div>
 
               <section className="scan-assist-panel compact-scan-panel">
-                <div className="scan-assist-header">
-                  <div>
-                    <p className="eyebrow">Quick Pad</p>
-                    <h3>Barcode Entry</h3>
-                  </div>
-                  <div className="scan-monitor">
-                    <span className="scan-monitor-label">Scanner Monitor</span>
-                    <div className="scan-preview inline-preview">{barcode || "Ready to scan"}</div>
-                  </div>
-                </div>
-                <BarcodePad onPress={handleBarcodePadPress} />
+                <QuickPad compact onSubmit={handleQuickEntry} />
               </section>
 
               <div className="sales-workspace categories-spaced">
@@ -788,6 +801,20 @@ export default function PosDashboardPage({ darkMode, user, onLogout, onToggleDar
                           <div className="sale-meta">
                             <strong>{peso(sale.total)}</strong>
                             <span>{sale.items.length} item(s)</span>
+                            <span className={`status-pill ${sale.status === "voided" ? "off" : "ok"}`}>
+                              {sale.status === "voided" ? "Voided" : "Completed"}
+                            </span>
+                            {sale.status === "voided" ? (
+                              <span>{sale.voidedBy?.name ? `By ${sale.voidedBy.name}` : "Already voided"}</span>
+                            ) : (
+                              <button
+                                type="button"
+                                className="btn btn-secondary slim"
+                                onClick={() => handleVoidReceipt(sale)}
+                              >
+                                Void Receipt
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))}
