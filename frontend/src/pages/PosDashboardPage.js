@@ -68,7 +68,7 @@ function getApiErrorMessage(error, fallback) {
   return error?.response?.data?.message || fallback;
 }
 
-export default function PosDashboardPage({ user, onLogout }) {
+export default function PosDashboardPage({ darkMode, user, onLogout, onToggleDark }) {
   const roleName = user.role?.name || "User";
   const isAdmin = roleName === "Admin";
   const isCashier = roleName === "Cashier";
@@ -510,6 +510,10 @@ export default function PosDashboardPage({ user, onLogout }) {
 
         <button type="button" className="btn btn-secondary" onClick={onLogout}>
           Logout
+        </button>
+
+        <button type="button" className="btn btn-secondary" onClick={onToggleDark}>
+          {darkMode ? "Dark Mode" : "Light Mode"}
         </button>
       </aside>
 

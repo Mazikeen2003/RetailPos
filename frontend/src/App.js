@@ -28,6 +28,12 @@ export default function App() {
   const [bootstrapping, setBootstrapping] = useState(Boolean(localStorage.getItem(TOKEN_KEY)));
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("retailpos.theme") !== "light");
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", darkMode);
+    localStorage.setItem("retailpos.theme", darkMode ? "dark" : "light");
+  }, [darkMode]);
 
   useEffect(() => {
     if (!token) {
@@ -110,8 +116,23 @@ export default function App() {
   }
 
   if (!token || !user) {
-    return <LoginPage error={authError} loading={authLoading} onSubmit={handleLogin} />;
+    return (
+      <LoginPage
+        darkMode={darkMode}
+        error={authError}
+        loading={authLoading}
+        onSubmit={handleLogin}
+        onToggleDark={() => setDarkMode((current) => !current)}
+      />
+    );
   }
 
-  return <PosDashboardPage user={user} onLogout={handleLogout} />;
+  return (
+    <PosDashboardPage
+      darkMode={darkMode}
+      user={user}
+      onLogout={handleLogout}
+      onToggleDark={() => setDarkMode((current) => !current)}
+    />
+  );
 }

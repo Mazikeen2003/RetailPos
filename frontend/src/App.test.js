@@ -3,6 +3,7 @@ import App from "./App";
 
 test("renders login form", () => {
   render(<App />);
-  expect(screen.getByRole("heading", { name: /connect the pos ui to live backend data/i })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: /sign in/i })).toBeInTheDocument();
+  expect(screen.getByText(/quick access/i)).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /login/i })).toBeInTheDocument();
 });

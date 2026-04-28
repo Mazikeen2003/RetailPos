@@ -16,26 +16,23 @@ class DatabaseSeeder extends Seeder
         $cashier = Role::updateOrCreate(['name' => 'Cashier']);
         $supervisor = Role::updateOrCreate(['name' => 'Supervisor']);
 
-        User::updateOrCreate(['email' => 'admin@test.com'], [
-            'name' => 'Admin User',
-            'password' => Hash::make('password123'),
-            'role_id' => $admin->id,
-            'is_active' => true,
-        ]);
+        $users = [
+            ['name' => 'Maria Cruz', 'email' => 'maria@example.com', 'password' => '1234', 'role_id' => $cashier->id],
+            ['name' => 'Daniel Reyes', 'email' => 'daniel@example.com', 'password' => '1234', 'role_id' => $supervisor->id],
+            ['name' => 'Angela Santos', 'email' => 'angela@example.com', 'password' => '1234', 'role_id' => $admin->id],
+            ['name' => 'Admin User', 'email' => 'admin@test.com', 'password' => 'password123', 'role_id' => $admin->id],
+            ['name' => 'Cashier User', 'email' => 'cashier@test.com', 'password' => 'password123', 'role_id' => $cashier->id],
+            ['name' => 'Supervisor User', 'email' => 'supervisor@test.com', 'password' => 'password123', 'role_id' => $supervisor->id],
+        ];
 
-        User::updateOrCreate(['email' => 'cashier@test.com'], [
-            'name' => 'Cashier User',
-            'password' => Hash::make('password123'),
-            'role_id' => $cashier->id,
-            'is_active' => true,
-        ]);
-
-        User::updateOrCreate(['email' => 'supervisor@test.com'], [
-            'name' => 'Supervisor User',
-            'password' => Hash::make('password123'),
-            'role_id' => $supervisor->id,
-            'is_active' => true,
-        ]);
+        foreach ($users as $user) {
+            User::updateOrCreate(['email' => $user['email']], [
+                'name' => $user['name'],
+                'password' => Hash::make($user['password']),
+                'role_id' => $user['role_id'],
+                'is_active' => true,
+            ]);
+        }
 
         $products = [
             ['barcode' => '480001', 'name' => 'Instant Noodles', 'category' => 'Grocery', 'price' => 18.50, 'stock' => 120, 'active' => true],
