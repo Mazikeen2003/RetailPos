@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback, useReducer } from "react";
+import React, { useEffect, useMemo, useState, useCallback, useReducer, useRef } from "react";
 // import { useEffect } from "react";
 import { login as apiLogin } from './services/auth';
 import { fetchProducts, createProduct, updateProduct, deactivateProduct } from './services/products';
@@ -112,6 +112,28 @@ export default function App() {
   const currentUserInitials = currentUserName ? currentUserName.split(" ").map(n => n[0]).join("") : '';
   const [loginForm, setLoginForm] = useState({ name: "", password: "" });
   const [loginError, setLoginError] = useState("");
+  const usernameRef = useRef(null);
+  const passwordRef = useRef(null);
+
+  // Dark mode (persisted)
+  const [darkMode, setDarkMode] = useState(() => {
+    try {
+      return localStorage.getItem('rp_dark') === '1';
+    } catch (e) {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      if (darkMode) {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('rp_dark', '1');
+      } else {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('rp_dark', '0');
+      }
+    } catch (e) {}
+  }, [darkMode]);
   const [activeTab, setActiveTab] = useState("sales");
   const [discount, setDiscount] = useState("none");
 
@@ -516,9 +538,12 @@ export default function App() {
       { name: "Angela Santos", role: "Administrator", icon: "👩‍💻", color: "from-purple-500 to-indigo-500" },
     ];
 
-    const handleQuickLogin = (userName) => {
-      // one-click login for demo accounts
-      loginWithCredentials(userName, '1234');
+    const handleQuickFill = (userName) => {
+      // fill the login inputs so user can review then click Login
+      setLoginForm({ name: userName, password: '1234' });
+      setLoginError("");
+      // focus the password field for convenience
+      setTimeout(() => passwordRef.current?.focus(), 50);
     };
 
     return (
@@ -538,6 +563,12 @@ export default function App() {
               <p className="text-gray-600 text-sm">Welcome back to RetailPOS Pro</p>
             </div>
             
+            <div className="flex justify-end mb-4">
+              <button type="button" onClick={() => setDarkMode(prev => !prev)} className="btn-small inline-flex items-center gap-2">
+                {darkMode ? '🌙 Dark' : '☀️ Light'}
+              </button>
+            </div>
+
             <form onSubmit={handleLogin} className="space-y-6">
               {/* Username Field */}
               <div>
@@ -546,6 +577,7 @@ export default function App() {
                   type="text"
                   value={loginForm.name}
                   onChange={(e) => setLoginForm({ ...loginForm, name: e.target.value })}
+                  ref={usernameRef}
                   placeholder="Enter your username"
                   className="input-base text-sm sm:text-base w-full"
                   aria-label="Username"
@@ -560,6 +592,7 @@ export default function App() {
                   type="password"
                   value={loginForm.password}
                   onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                  ref={passwordRef}
                   placeholder="Enter password"
                   className="input-base text-sm sm:text-base w-full"
                   aria-label="Password"
@@ -601,8 +634,8 @@ export default function App() {
                   <button
                     key={user.name}
                     type="button"
-                    onClick={() => handleQuickLogin(user.name)}
-                    aria-label={`Login as ${user.name}`}
+                    onClick={() => handleQuickFill(user.name)}
+                    aria-label={`Fill fields for ${user.name}`}
                     className={`px-4 py-2 rounded-md bg-gray-100 text-gray-800 font-medium hover:bg-gray-200 flex items-center gap-3`}
                   >
                     <span className="text-lg">{user.icon}</span>
@@ -691,7 +724,7 @@ export default function App() {
 
       {/* MAIN CONTENT */}
       <main className="flex-1 overflow-y-auto">
-        <Header currentUser={currentUser} onLogout={handleLogout} />
+        <Header currentUser={currentUser} onLogout={handleLogout} darkMode={darkMode} onToggleDark={() => setDarkMode(prev => !prev)} />
         {/* MOBILE HEADER */}
         <div className="md:hidden bg-white border-b border-gray-200 p-4 sticky top-0 z-50">
           <div className="flex items-center justify-between">
@@ -702,12 +735,17 @@ export default function App() {
                 <p className="text-xs text-gray-600">{currentUserName}</p>
               </div>
             </div>
-            <button 
-              onClick={handleLogout}
-              className="text-red-600 hover:text-red-700 font-medium text-sm"
-            >
-              Logout
-            </button>
+            <div className="flex items-center gap-3">
+              <button onClick={() => setDarkMode(prev => !prev)} className="btn-small text-sm" aria-label="Toggle theme">
+                {darkMode ? '🌙' : '☀️'}
+              </button>
+              <button 
+                onClick={handleLogout}
+                className="text-red-600 hover:text-red-700 font-medium text-sm"
+              >
+                Logout
+              </button>
+            </div>
           </div>
         </div>
 

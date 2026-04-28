@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function Header({ currentUser, onLogout }) {
+export default function Header({ currentUser, onLogout, darkMode, onToggleDark }) {
   return (
     <header className="hidden md:flex items-center justify-between bg-white border-b border-gray-200 p-4 lg:p-6 sticky top-0 z-50">
       <div className="flex items-center gap-3">
@@ -12,6 +12,9 @@ export default function Header({ currentUser, onLogout }) {
       </div>
 
       <div className="flex items-center gap-4">
+        <button onClick={onToggleDark} className="btn-small" aria-label="Toggle theme">
+          {darkMode ? '🌙' : '☀️'}
+        </button>
         {currentUser && (
           <>
             <div className="flex items-center gap-3">
