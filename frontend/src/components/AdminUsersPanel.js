@@ -8,7 +8,7 @@ export default function AdminUsersPanel({
   onEdit,
 }) {
   return (
-    <section className="panel">
+    <section className="panel user-management-panel">
       <div className="panel-heading">
         <div>
           <p className="eyebrow">Administrator</p>
@@ -70,15 +70,17 @@ export default function AdminUsersPanel({
 
       <div className="table-like">
         {users.map((account) => (
-          <div key={account.id} className="table-row">
+          <div key={account.id} className="table-row user-management-row">
             <div>
               <strong>{account.name}</strong>
               <p>{account.email}</p>
             </div>
-            <div className="table-row-actions">
-              <span>{account.role?.name || "No role"}</span>
-              <span>{account.is_active ? "Active" : "Inactive"}</span>
-              <span>{account.last_login_at ? new Date(account.last_login_at).toLocaleString() : "No login yet"}</span>
+            <div className="table-row-actions user-management-actions">
+              <span className="user-role">{account.role?.name || "No role"}</span>
+              <span className={`status-pill ${account.is_active ? "ok" : "off"}`}>
+                {account.is_active ? "Active" : "Inactive"}
+              </span>
+              <span className="last-login">{account.last_login_at ? new Date(account.last_login_at).toLocaleString() : "No login yet"}</span>
               <button
                 type="button"
                 className="btn btn-secondary slim"

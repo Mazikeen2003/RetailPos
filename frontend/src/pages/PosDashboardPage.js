@@ -1040,7 +1040,7 @@ export default function PosDashboardPage({ user, onLogout }) {
             )}
 
             {activeTab === "activity" && (
-              <section className="panel">
+              <section className="panel supervisor-catalog-panel">
                 <div className="panel-heading">
                   <div>
                     <p className="eyebrow">Supervisor</p>
@@ -1087,7 +1087,7 @@ export default function PosDashboardPage({ user, onLogout }) {
                 ) : (
                   <div className="table-like">
                     {products.map((product) => (
-                      <div key={product.id} className="table-row">
+                      <div key={product.id} className="table-row supervisor-catalog-row">
                         <div>
                           <strong>{product.name}</strong>
                           <p>{product.barcode} • {product.category}</p>
@@ -1096,8 +1096,8 @@ export default function PosDashboardPage({ user, onLogout }) {
                           <span className={`status-pill ${product.active ? "ok" : "off"}`}>
                             {product.active ? "Active" : "Inactive"}
                           </span>
-                          <span>{product.stock} stock</span>
-                          <span>PHP {Number(product.price).toFixed(2)}</span>
+                          <span className="product-stock-count">{product.stock} stock</span>
+                          <span className="product-price">PHP {Number(product.price).toFixed(2)}</span>
                         </div>
                       </div>
                     ))}

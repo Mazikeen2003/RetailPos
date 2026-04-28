@@ -411,12 +411,53 @@ p {
   min-width: 124px;
 }
 
+.user-management-panel .admin-form-grid {
+  margin-bottom: 26px;
+  row-gap: 18px;
+}
+
+.user-management-actions {
+  grid-template-columns: 120px 98px 190px 96px;
+  align-items: center;
+  justify-items: end;
+  gap: 14px;
+}
+
+.user-role,
+.last-login {
+  color: var(--ink);
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.last-login {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.user-management-actions .btn {
+  min-width: 96px;
+  width: 100%;
+}
+
 .activity-row {
   align-items: flex-start;
 }
 
 .supervisor-catalog-actions {
+  grid-template-columns: 96px 100px 116px;
   align-items: center;
+  justify-items: end;
+  gap: 18px;
+}
+
+.supervisor-catalog-panel .panel-heading {
+  margin-bottom: 10px;
+}
+
+.supervisor-catalog-row {
+  min-height: 96px;
 }
 
 .status-pill {
@@ -1033,13 +1074,29 @@ p {
     width: 100%;
   }
 
-  .product-management-actions .status-pill {
+  .user-management-actions {
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
+    justify-items: stretch;
+    width: 100%;
+  }
+
+  .supervisor-catalog-actions {
+    grid-template-columns: repeat(3, minmax(96px, 1fr));
+    justify-items: stretch;
+    width: 100%;
+  }
+
+  .product-management-actions .status-pill,
+  .user-management-actions .status-pill,
+  .supervisor-catalog-actions .status-pill {
     justify-self: stretch;
     width: 100%;
   }
 
   .product-stock-count,
-  .product-price {
+  .product-price,
+  .user-role,
+  .last-login {
     text-align: center;
   }
 }
@@ -1102,19 +1159,33 @@ p {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .product-management-actions .status-pill {
+  .user-management-actions,
+  .supervisor-catalog-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .product-management-actions .status-pill,
+  .supervisor-catalog-actions .status-pill {
+    grid-column: 1 / -1;
+  }
+
+  .last-login,
+  .user-management-actions .btn {
     grid-column: 1 / -1;
   }
 
   .product-stock-count,
-  .product-price {
+  .product-price,
+  .user-role,
+  .last-login {
     padding: 10px 12px;
     border-radius: 14px;
     background: rgba(15, 118, 110, 0.08);
   }
 
   .product-management-actions .btn,
-  .product-management-actions .btn:last-child {
+  .product-management-actions .btn:last-child,
+  .user-management-actions .btn {
     min-width: 0;
   }
 }
