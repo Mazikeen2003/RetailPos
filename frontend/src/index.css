@@ -248,9 +248,9 @@ code {
 .border-teal-600 { border-color: rgb(13, 148, 136); }
 .border-emerald-200 { border-color: rgb(167, 243, 208); }
 .border-emerald-600 { border-color: rgb(5, 150, 105); }
-.border-orange-200 { border-color: rgb(fed7aa); }
+.border-orange-200 { border-color: #fed7aa; }
 .border-orange-600 { border-color: rgb(234, 88, 12); }
-.border-pink-200 { border-color: rgb(fbcfe8); }
+.border-pink-200 { border-color: #fbcfe8; }
 .border-pink-600 { border-color: rgb(219, 39, 119); }
 
 .bg-gradient-to-br { background-image: linear-gradient(to bottom right, var(--tw-gradient-stops)); }
@@ -632,13 +632,13 @@ textarea.input-base {
 }
 
 .badge-orange {
-  background-color: rgb(fed7aa);
+  background-color: #fed7aa;
   color: rgb(124, 45, 0);
   box-shadow: 0 0 10px rgba(234, 88, 12, 0.2);
 }
 
 .badge-pink {
-  background-color: rgb(fbcfe8);
+  background-color: #fbcfe8;
   color: rgb(131, 24, 67);
   box-shadow: 0 0 10px rgba(219, 39, 119, 0.2);
 }
@@ -943,4 +943,305 @@ button:focus-visible {
     page-break-inside: avoid;
   }
 }
+
+/* ==================== DARK MODE OVERRIDES ==================== */
+/* When the `dark` class is placed on <html> (documentElement) these rules apply */
+.dark body {
+  background-color: #071026; /* deep slate */
+  color: #e6eef8;
+}
+
+.dark .card-base {
+  background: linear-gradient(180deg, rgba(8,12,20,0.85) 0%, rgba(12,18,28,0.85) 100%);
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow: 0 10px 30px -12px rgba(2,6,23,0.6), 0 6px 12px -8px rgba(2,6,23,0.4);
+}
+
+.dark .input-base {
+  background-color: rgba(255,255,255,0.03);
+  border-color: rgba(255,255,255,0.06);
+  color: #e6eef8;
+}
+
+.dark .input-base::placeholder {
+  color: rgba(230,238,248,0.45);
+}
+
+.dark .text-gray-900, .dark .text-gray-800, .dark .text-gray-700 {
+  color: #e6eef8 !important;
+}
+
+.dark .text-gray-600, .dark .text-gray-500 {
+  color: #cbd5e1 !important;
+}
+
+.dark .bg-white { background-color: transparent !important; }
+.dark .bg-gray-50 { background-color: #071026 !important; }
+.dark .bg-gray-100 { background-color: #071428 !important; }
+
+.dark .border-gray-200 { border-color: rgba(255,255,255,0.06) !important; }
+.dark .border-gray-300 { border-color: rgba(255,255,255,0.04) !important; }
+
+.dark .btn-secondary {
+  background: linear-gradient(135deg, rgb(79,70,229), rgb(71,85,105));
+}
+
+.dark thead { background-color: rgba(255,255,255,0.02); }
+.dark tbody tr:hover { background-color: rgba(255,255,255,0.02); }
+
+/* end dark mode */
+
+/* ==================== DARK MODE - ADDITIONAL OVERRIDES ==================== */
+/* Broader coverage for utility classes and card variants to avoid mixed white panels */
+.dark .bg-white { background-color: #071226 !important; color: #e6eef8 !important; }
+.dark .bg-gray-50 { background-color: #071226 !important; }
+.dark .bg-gray-100 { background-color: #08192b !important; }
+.dark .bg-gray-200 { background-color: rgba(255,255,255,0.02) !important; }
+.dark .bg-blue-50 { background-color: rgba(8,21,41,0.6) !important; }
+.dark .bg-indigo-50 { background-color: rgba(8,18,34,0.6) !important; }
+
+.dark .card-base {
+  background: linear-gradient(180deg, rgba(7,12,20,0.9) 0%, rgba(10,18,30,0.95) 100%) !important;
+  border: 1px solid rgba(255,255,255,0.04) !important;
+}
+.dark .card-base:hover {
+  box-shadow: 0 14px 32px -12px rgba(2,6,23,0.75) !important;
+  transform: translateY(-1px);
+}
+
+.dark .card-blue { background: linear-gradient(135deg, rgba(6,20,34,0.6), rgba(8,12,28,0.85)); border-left: 4px solid rgba(59,130,246,0.9); }
+.dark .card-purple { background: linear-gradient(135deg, rgba(8,12,28,0.6), rgba(12,6,28,0.85)); border-left: 4px solid rgba(147,51,234,0.8); }
+.dark .card-cyan { background: linear-gradient(135deg, rgba(6,12,16,0.6), rgba(6,14,18,0.82)); border-left: 4px solid rgba(8,145,178,0.8); }
+.dark .card-teal { background: linear-gradient(135deg, rgba(6,12,16,0.6), rgba(8,14,18,0.82)); border-left: 4px solid rgba(13,148,136,0.8); }
+.dark .card-emerald { background: linear-gradient(135deg, rgba(6,12,16,0.6), rgba(8,14,18,0.82)); border-left: 4px solid rgba(5,150,105,0.8); }
+.dark .card-indigo { background: linear-gradient(135deg, rgba(6,12,28,0.6), rgba(10,8,28,0.85)); border-left: 4px solid rgba(79,70,229,0.8); }
+
+.dark .input-base { background-color: rgba(255,255,255,0.02) !important; border-color: rgba(255,255,255,0.06) !important; color: #e6eef8 !important; }
+.dark .input-base::placeholder { color: rgba(230,238,248,0.45) !important; }
+
+.dark .btn-primary { background: linear-gradient(135deg, #0b3a5f, #14345a) !important; color: #fff !important; box-shadow: 0 8px 24px -8px rgba(2,6,23,0.7) !important; }
+.dark .btn-primary:hover:not(:disabled) { background: linear-gradient(135deg, #083055, #112a48) !important; }
+.dark .btn-secondary { background: linear-gradient(135deg, rgba(79,70,229,0.9), rgba(51,65,85,0.85)) !important; color: #fff !important; border-color: rgba(255,255,255,0.06) !important; }
+
+.dark .badge { background-color: rgba(255,255,255,0.03) !important; color: #e6eef8 !important; }
+
+.dark thead { background-color: rgba(255,255,255,0.02) !important; color: #cbd5e1 !important; }
+.dark tbody tr:hover { background-color: rgba(255,255,255,0.02) !important; }
+.dark td, .dark th { color: #e6eef8 !important; }
+
+.dark .text-gray-900, .dark .text-gray-800, .dark .text-gray-700 { color: #e6eef8 !important; }
+.dark .text-gray-600, .dark .text-gray-500 { color: #cbd5e1 !important; }
+
+.dark .border-gray-200 { border-color: rgba(255,255,255,0.04) !important; }
+.dark .border-gray-300 { border-color: rgba(255,255,255,0.03) !important; }
+
+/* ensure plain elements with inline bg colors are still readable */
+.dark .bg-gradient-to-br, .dark .bg-gradient-to-r { background-image: none !important; }
+
+/* end additional dark overrides */
+
+/* Target common slate/text utilities used across the app */
+.dark .text-slate-900, .dark .text-slate-800, .dark .text-slate-700 {
+  color: #e6eef8 !important;
+}
+.dark .text-slate-600, .dark .text-slate-500, .dark .text-slate-400, .dark .text-slate-300 {
+  color: #cbd5e1 !important;
+}
+.dark .text-slate-200, .dark .text-slate-100 {
+  color: #94a3b8 !important;
+}
+
+/* Ensure headings and smaller text inside cards are visible */
+.dark .card-base h1, .dark .card-base h2, .dark .card-base h3, .dark .card-base p, .dark .card-base small, .dark .card-base a, .dark .card-base span {
+  color: inherit !important;
+}
+
+/* Make sure utility gray text colors are readable even when component uses neutral classes */
+.dark .text-gray-900, .dark .text-gray-800, .dark .text-gray-700, .dark .text-gray-600, .dark .text-gray-500 {
+  color: #e6eef8 !important;
+}
+
+/* Buttons inside dark cards - ensure text contrast */
+.dark .card-base .btn-primary, .dark .btn-primary { color: #fff !important; }
+.dark .card-base .btn-secondary, .dark .btn-secondary { color: #fff !important; }
+
+/* Fallback: make any element with .muted or .muted-text visible */
+.dark .muted, .dark .muted-text { color: #98a6bd !important; }
+
+/* ==================== POS UI REFINEMENT PASS ==================== */
+.login-screen {
+  background:
+    linear-gradient(135deg, rgba(240, 253, 250, 0.82), rgba(239, 246, 255, 0.92)),
+    #f4f7fb;
+}
+
+.pos-shell {
+  width: 100%;
+  background:
+    linear-gradient(180deg, rgba(248, 250, 252, 0.94), rgba(241, 245, 249, 0.98)),
+    #f1f5f9;
+  color: #111827;
+}
+
+.content-stage {
+  width: 100%;
+}
+
+.sidebar-panel {
+  min-height: 100vh;
+  border-right: 1px solid rgba(15, 23, 42, 0.18);
+}
+
+.card-base {
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(148, 163, 184, 0.32);
+  box-shadow: 0 10px 22px -18px rgba(15, 23, 42, 0.45), 0 1px 0 rgba(255, 255, 255, 0.75) inset;
+}
+
+.card-base:hover {
+  transform: none;
+  border-color: rgba(20, 184, 166, 0.42);
+  box-shadow: 0 14px 28px -22px rgba(15, 23, 42, 0.55), 0 1px 0 rgba(255, 255, 255, 0.75) inset;
+}
+
+.btn-primary,
+.btn-secondary,
+.btn-danger,
+.input-base,
+.rounded-lg,
+.rounded-xl {
+  border-radius: 0.5rem;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #0f766e, #2563eb);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #0d9488, #1d4ed8);
+}
+
+.btn-secondary {
+  background: linear-gradient(135deg, #475569, #334155);
+}
+
+.btn-danger {
+  background: #dc2626;
+}
+
+table {
+  background: white;
+}
+
+thead {
+  background: #eef2f7;
+}
+
+tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.dark .login-screen,
+.dark .pos-shell {
+  background: #071026;
+  color: #e6eef8;
+}
+
+.dark .card-base,
+.dark .card-blue,
+.dark .card-purple,
+.dark .card-cyan,
+.dark .card-teal,
+.dark .card-emerald,
+.dark .card-orange,
+.dark .card-pink,
+.dark .card-indigo {
+  color: #e6eef8 !important;
+}
+
+.dark .card-base h1,
+.dark .card-base h2,
+.dark .card-base h3,
+.dark .card-base h4,
+.dark .card-base label,
+.dark .card-base strong,
+.dark .card-base .font-bold,
+.dark .card-base .font-semibold {
+  color: #f8fafc !important;
+}
+
+.dark .card-base p,
+.dark .card-base small,
+.dark .card-base td,
+.dark .card-base li,
+.dark .card-base .text-gray-600,
+.dark .card-base .text-gray-500,
+.dark .card-base .text-slate-600,
+.dark .card-base .text-slate-500 {
+  color: #cbd5e1 !important;
+}
+
+.dark .card-base .text-blue-600,
+.dark .card-base .text-blue-700,
+.dark .card-base .text-indigo-600,
+.dark .card-base .text-teal-700 {
+  color: #93c5fd !important;
+}
+
+.dark .card-base .text-green-600,
+.dark .card-base .text-green-700 {
+  color: #86efac !important;
+}
+
+.dark .card-base .text-red-600,
+.dark .card-base .text-red-700,
+.dark .card-base .text-red-800,
+.dark .card-base .text-red-900 {
+  color: #fca5a5 !important;
+}
+
+.dark .card-base .bg-white,
+.dark .card-base .bg-gray-50,
+.dark .card-base .bg-gray-100,
+.dark .card-base table,
+.dark .card-base thead,
+.dark .card-base tbody tr {
+  background-color: rgba(15, 23, 42, 0.7) !important;
+}
+
+.dark .card-base .bg-blue-50,
+.dark .card-base .bg-green-50,
+.dark .card-base .bg-green-100,
+.dark .card-base .bg-red-50,
+.dark .card-base .bg-yellow-50,
+.dark .card-base .bg-indigo-100,
+.dark .card-base .bg-teal-100 {
+  background-color: rgba(30, 41, 59, 0.82) !important;
+}
+
+.dark .card-base .badge {
+  border: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.dark .card-base .badge-success {
+  background: rgba(22, 163, 74, 0.18) !important;
+  color: #bbf7d0 !important;
+}
+
+.dark .card-base .badge-danger {
+  background: rgba(220, 38, 38, 0.2) !important;
+  color: #fecaca !important;
+}
+
+.dark .card-base .badge-warning {
+  background: rgba(217, 119, 6, 0.2) !important;
+  color: #fde68a !important;
+}
+
+.dark .card-base .badge-info {
+  background: rgba(8, 145, 178, 0.2) !important;
+  color: #a5f3fc !important;
+}
+
 
