@@ -5,6 +5,7 @@ import { fetchProducts, createProduct, updateProduct, deactivateProduct } from '
 import { createSale as apiCreateSale, cancelSale as apiCancelSale, reprintReceipt as apiReprintReceipt } from './services/sales';
 import { fetchAuditLogs } from './services/audit';
 import Header from './components/Header';
+import QuickPad from './components/QuickPad';
 
 
 
@@ -765,8 +766,6 @@ export default function App() {
                 {item.label}
               </button>
             ))}
-
-            ))
           </div>
         </div>
 
@@ -797,7 +796,10 @@ export default function App() {
             </div>
 
             {/* SALES GRID - Mobile stacked, Desktop 2-col */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+            <div className="mb-6">
+              <QuickPad />
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6"> 
               {/* Products Section */}
               <div className="lg:col-span-2 card-indigo p-4 md:p-6">
                 <div className="mb-3 inline-flex items-center gap-2 px-2 py-1 rounded-full bg-indigo-100 text-indigo-700 text-xs font-semibold">
