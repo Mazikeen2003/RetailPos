@@ -37,7 +37,7 @@ export default function AdminProductsPanel({
   };
 
   return (
-    <section className="panel">
+    <section className="panel product-management-panel">
       <div className="panel-heading">
         <div>
           <p className="eyebrow">Administrator</p>

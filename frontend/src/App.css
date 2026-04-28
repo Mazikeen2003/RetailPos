@@ -333,6 +333,16 @@ p {
   align-items: center;
 }
 
+.product-management-panel .panel-heading {
+  align-items: flex-start;
+  margin-bottom: 22px;
+}
+
+.product-management-panel .panel-empty {
+  margin-top: 8px;
+  line-height: 1.55;
+}
+
 .product-grid,
 .list-stack,
 .cart-list,
