@@ -2,179 +2,98 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\AuditLog;
 use App\Models\Product;
 use App\Models\Sale;
-use App\Models\SaleItem;
 use Illuminate\Http\Request;
-use App\Http\Requests\StoreSaleRequest;
-use App\Http\Requests\VoidSaleItemRequest;
-use App\Http\Requests\PostVoidRequest;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rule;
 
 class SaleController extends Controller
 {
-    public function store(StoreSaleRequest $request)
+    public function index()
     {
-        $user = $request->user();
-        $validated = $request->validated();
-        $items = $validated['items'];
-        $discount = $validated['discount'] ?? 'none';
+        return response()->json(
+            Sale::query()
+                ->with(['cashier:id,name', 'items'])
+                ->latest()
+                ->limit(20)
+                ->get()
+        );
+    }
 
-        $sale = DB::transaction(function () use ($user, $items, $discount) {
-            $saleItems = [];
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'discountType' => ['nullable', 'string', Rule::in(['none', 'senior', 'pwd', 'athlete', 'solo'])],
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
+            'items.*.quantity' => ['required', 'integer', 'min:1'],
+        ]);
+
+        $discountType = $validated['discountType'] ?? 'none';
+        $discountRate = match ($discountType) {
+            'senior', 'pwd' => 0.20,
+            'athlete', 'solo' => 0.10,
+            default => 0,
+        };
+
+        $sale = DB::transaction(function () use ($validated, $discountType, $discountRate, $request) {
+            $productIds = collect($validated['items'])->pluck('product_id');
+            $products = Product::query()
+                ->whereIn('id', $productIds)
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
+            $lineItems = [];
             $subtotal = 0;
 
-            foreach ($items as $it) {
-                $productId = $it['id'] ?? $it['product_id'] ?? null;
-                $qty = intval($it['qty'] ?? 1);
-                $product = Product::whereKey($productId)->lockForUpdate()->firstOrFail();
+            foreach ($validated['items'] as $item) {
+                $product = $products->get($item['product_id']);
 
-                if (! $product->active) {
-                    throw ValidationException::withMessages([
-                        'items' => ["{$product->name} is inactive and cannot be sold."],
-                    ]);
+                if (! $product || ! $product->active) {
+                    abort(422, 'One or more selected products are inactive.');
                 }
 
-                if ($product->stock < $qty) {
-                    throw ValidationException::withMessages([
-                        'items' => ["Only {$product->stock} unit(s) available for {$product->name}."],
-                    ]);
+                if ($product->stock < $item['quantity']) {
+                    abort(422, "Insufficient stock for {$product->name}.");
                 }
 
-                $price = (float) $product->price;
-                $subtotal += $price * $qty;
-                $saleItems[] = compact('product', 'qty', 'price');
+                $lineTotal = $product->price * $item['quantity'];
+                $subtotal += $lineTotal;
+
+                $lineItems[] = [
+                    'product_id' => $product->id,
+                    'product_name' => $product->name,
+                    'barcode' => $product->barcode,
+                    'price' => $product->price,
+                    'quantity' => $item['quantity'],
+                    'line_total' => $lineTotal,
+                ];
             }
 
-            $discountRate = in_array($discount, ['senior','pwd']) ? 0.2 : (in_array($discount, ['athlete','solo']) ? 0.1 : 0);
             $discountAmount = $subtotal * $discountRate;
-            $total = $subtotal - $discountAmount;
-
             $sale = Sale::create([
-                'user_id' => optional($user)->id,
+                'cashier_id' => $request->user()->id,
                 'subtotal' => $subtotal,
-                'discount' => $discount,
+                'discount_type' => $discountType,
+                'discount_rate' => $discountRate,
                 'discount_amount' => $discountAmount,
-                'total' => $total,
+                'total' => $subtotal - $discountAmount,
+                'status' => 'completed',
             ]);
 
-            foreach ($saleItems as $saleItem) {
-                SaleItem::create([
-                    'sale_id' => $sale->id,
-                    'product_id' => $saleItem['product']->id,
-                    'qty' => $saleItem['qty'],
-                    'price' => $saleItem['price'],
-                ]);
-
-                $saleItem['product']->stock -= $saleItem['qty'];
-                $saleItem['product']->save();
+            foreach ($lineItems as $lineItem) {
+                $sale->items()->create($lineItem);
+                $products[$lineItem['product_id']]->decrement('stock', $lineItem['quantity']);
             }
 
-            AuditLog::create([
-                'action' => 'Sale Completed',
-                'user' => optional($user)->name ?? 'system',
-                'user_id' => optional($user)->id,
-                'details' => "TXN-{$sale->id} completed",
-                'level' => 'High',
-            ]);
-
-            return $sale;
+            return $sale->load(['cashier:id,name', 'items']);
         });
 
-        // return sale with items
-        $sale->load('items.product');
-
-        return response()->json($sale, 201);
-    }
-
-    public function cancel(Request $request)
-    {
-        $request->validate([
-            'reason' => 'required|string',
-        ]);
-
-        $user = $request->user();
-
-        AuditLog::create([
-            'action' => 'Sale Cancelled',
-            'user' => optional($user)->name ?? 'system',
-            'user_id' => optional($user)->id,
-            'details' => $request->input('reason'),
-            'level' => 'Medium',
-        ]);
-
-        return response()->json(['message' => 'Sale cancellation recorded']);
-    }
-
-    public function voidItem(VoidSaleItemRequest $request)
-    {
-        $user = $request->user();
-
-        $saleItem = SaleItem::findOrFail($request->validated()['sale_item_id']);
-        /** @var \App\Models\SaleItem $saleItem */
-        if ($saleItem->isVoided()) {
-            return response()->json(['message' => 'Item already voided']);
-        }
-
-        DB::transaction(function () use ($saleItem, $user) {
-            $saleItem->markVoided();
-
-            if ($saleItem->product) {
-                $saleItem->product->stock += $saleItem->getQty();
-                $saleItem->product->save();
-            }
-
-            AuditLog::create([
-                'action' => 'Item Voided',
-                'user' => optional($user)->name ?? 'system',
-                'user_id' => optional($user)->id,
-                'details' => "Voided item {$saleItem->id} from sale {$saleItem->sale_id}",
-                'level' => 'Medium',
-            ]);
-        });
-
-        return response()->json(['message' => 'Item voided']);
-    }
-
-    public function postVoid(PostVoidRequest $request)
-    {
-        $user = $request->user();
-        if (! in_array(optional($user)->role, ['Supervisor', 'Administrator'])) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-        /** @var \App\Models\Sale $sale */
-        $sale = Sale::with('items')->findOrFail($request->validated()['sale_id']);
-        if ($sale->canceled) {
-            return response()->json(['message' => 'Sale already canceled'], 400);
-        }
-
-        DB::transaction(function () use ($sale, $request, $user) {
-            /** @var \Illuminate\Database\Eloquent\Collection|\App\Models\SaleItem[] $saleItems */
-            $saleItems = $sale->items;
-
-            foreach ($saleItems as $it) {
-                /** @var \App\Models\SaleItem $it */
-                if (! $it->isVoided() && $it->product) {
-                    $it->product->stock += $it->getQty();
-                    $it->product->save();
-                }
-            }
-
-            $sale->canceled = true;
-            $sale->canceled_reason = $request->validated()['reason'];
-            $sale->save();
-
-            AuditLog::create([
-                'action' => 'Post-void Approved',
-                'user' => optional($user)->name ?? 'system',
-                'user_id' => optional($user)->id,
-                'details' => "TXN-{$sale->id} reversed. Reason: {$request->validated()['reason']}",
-                'level' => 'High',
-            ]);
-        });
-
-        return response()->json(['message' => 'Post-void completed']);
+        return response()->json([
+            'message' => 'Sale completed successfully',
+            'sale' => $sale,
+        ], 201);
     }
 }

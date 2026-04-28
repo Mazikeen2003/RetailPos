@@ -2,43 +2,66 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Auth;
 
 class AuthController extends Controller
 {
     public function login(Request $request)
     {
-        $request->validate([
-            'name' => 'nullable|string',
-            'email' => 'nullable|email',
-            'password' => 'required|string',
+        $credentials = $request->validate([
+            'email' => 'required|email',
+            'password' => 'required'
         ]);
 
-        $user = null;
-        if ($request->filled('email')) {
-            $user = User::where('email', $request->email)->first();
-        } elseif ($request->filled('name')) {
-            $user = User::where('name', $request->name)->first();
+        if (!Auth::attempt($credentials)) {
+            return response()->json([
+                'message' => 'Invalid credentials'
+            ], 401);
         }
 
-        if (! $user || ! Hash::check($request->password, $user->password)) {
-            throw ValidationException::withMessages(['credentials' => ['The provided credentials are incorrect.']]);
-        }
+        $user = User::with('role')->where('email', $request->email)->first();
+
+        $user->forceFill([
+            'last_login_at' => now(),
+        ])->save();
 
         $token = $user->createToken('api-token')->plainTextToken;
 
-        return response()->json(['user' => $user, 'token' => $token]);
+        AuditLog::create([
+            'user_id' => $user->id,
+            'action' => 'login',
+            'details' => "User {$user->email} logged in.",
+            'logged_at' => now(),
+        ]);
+
+        return response()->json([
+            'message' => 'Login successful',
+            'token' => $token,
+            'user' => $user
+        ]);
+    }
+
+    public function profile(Request $request)
+    {
+        return response()->json($request->user()->load('role'));
     }
 
     public function logout(Request $request)
     {
-        if ($request->user()) {
-            $request->user()->currentAccessToken()->delete();
-        }
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'logout',
+            'details' => "User {$request->user()->email} logged out.",
+            'logged_at' => now(),
+        ]);
 
-        return response()->json(['message' => 'Logged out']);
+        $request->user()->currentAccessToken()->delete();
+
+        return response()->json([
+            'message' => 'Logged out successfully'
+        ]);
     }
 }

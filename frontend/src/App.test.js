@@ -1,8 +1,8 @@
-import { render, screen } from '@testing-library/react';
-import App from './App';
+import { render, screen } from "@testing-library/react";
+import App from "./App";
 
-test('renders sign in form', () => {
+test("renders login form", () => {
   render(<App />);
-  const heading = screen.getByText(/sign in/i);
-  expect(heading).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: /connect the pos ui to live backend data/i })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /login/i })).toBeInTheDocument();
 });
